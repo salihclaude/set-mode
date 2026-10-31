@@ -16,6 +16,10 @@ Live: <https://salihclaude.github.io/set-mode/>
   sowie Ausführung, Tipps, häufige Fehler, beanspruchte Muskeln und Atmung.
 - **4 Sprachen:** Deutsch 🇩🇪, Englisch 🇬🇧, Spanisch 🇪🇸 und Türkisch 🇹🇷. Die Sprache wechselt sofort ohne Neuladen und
   wird gespeichert. Beim ersten Start gilt die Gerätesprache, sonst Deutsch.
+- **SET-Mode-Schalter:** Der Regler in der Wortmarke (Tippen oder Ziehen) schaltet zwischen dem Standarddesign
+  (rechts, ON) und einem monochromen Graphit-Design (links, OFF). Die Einstellung wird gespeichert.
+- **Voiceover:** Die Erklärung wird in der App-Sprache mitgesprochen, synchron zur Animation (siehe [VOICEOVER.md](VOICEOVER.md)).
+- **Bottom Sheets** lassen sich nach unten wegwischen; Scrollen im Inhalt bleibt unberührt.
 - **Verlauf:** Wochenvolumen, Körpergewicht, Fortschritt pro Übung, Rekorde und Serien.
 - **Offline-fähig**, alle Daten bleiben lokal auf dem Gerät. Backup per Export/Import.
 
@@ -28,8 +32,10 @@ Live: <https://salihclaude.github.io/set-mode/>
 | `lang/*.js` | Ein Wörterbuch pro Sprache (Oberfläche + Übungstexte unter `ex.<id>`) |
 | `data.js` | Übungsdatenbank (IDs, Muskeln, Atemmuster) und Plan-Generator |
 | `anim.js` | Eigene SVG-Animations-Engine (2D-Figur mit IK), eine Pose-Funktion pro Übung |
+| `voice.js` | Voiceover: Sprechtexte, Aufnahmen aus `audio/` oder Gerätestimme, satzweise Wiedergabe |
+| `audio/` | `manifest.json` + Aufnahmen `audio/<sprache>/<id>/<satz>.mp3` (siehe VOICEOVER.md) |
 | `app.js` | Oberfläche, Trainingslogik, Speicherung, Migration älterer Daten |
-| `styles.css` | Design |
+| `styles.css` | Design; Theme-Tokens für SET Mode ON/OFF (`html[data-setmode]`) |
 | `sw.js` | Offline-Cache |
 
 ### Weitere Sprache hinzufügen
@@ -48,7 +54,7 @@ Ohne Animation zeigt die App einen sauberen Platzhalter „Animation folgt“.
 
 - Gespeichert wird im `localStorage` unter dem Schlüssel `fitplan.v1` (aus Kompatibilitätsgründen unverändert).
   Ältere Daten werden beim Start automatisch übernommen, eigene Übungs- und Tagesnamen bleiben erhalten.
-- Nach Änderungen die Cache-Version in `sw.js` erhöhen (`setmode-v4` → `setmode-v5`). Geräte laden die neue Version
+- Nach Änderungen die Cache-Version in `sw.js` erhöhen (`setmode-v5` → `setmode-v6`). Geräte laden die neue Version
   im Hintergrund und zeigen sie beim nächsten Öffnen.
 
 ## Aufs Handy bringen
@@ -63,6 +69,8 @@ node tools/serve.js
 
 Danach <http://localhost:8080> öffnen; der Offline-Cache ist lokal deaktiviert.
 
+- `node tools/test.js`: alle Tests (Sprachen, Plan-Generator, Animationen, Voiceover, Theme)
 - `node tools/check-i18n.js`: prüft alle Sprachen auf Vollständigkeit
+- `node tools/generate-voiceover.js`: erzeugt Voiceover-Aufnahmen (siehe VOICEOVER.md)
 - `http://localhost:8080/tools/anim-gallery.html`: zeigt alle Animationen (Start / Mitte / Ende)
 - `node tools/make-icons.js`: erzeugt die App-Icons neu

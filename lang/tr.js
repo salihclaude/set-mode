@@ -172,7 +172,7 @@
       note: 'Not', up: 'Yukarı taşı', down: 'Aşağı taşı',
     },
     info: {
-      title: 'Egzersizi açıkla', play: 'Animasyonu oynat', stop: 'Animasyonu durdur',
+      title: 'Egzersizi açıkla', play: 'Animasyonu oynat', pause: 'Duraklat', stop: 'Animasyonu durdur',
       phase: { start: 'Başlangıç', exec: 'Hareket', end: 'Bitiş pozisyonu' },
       view: { side: 'Yandan görünüm', front: 'Önden görünüm', top: 'Üstten görünüm' },
       noAnim: 'Animasyon yakında', noAnimText: 'Bu egzersiz için henüz animasyon yok. Aşağıdaki ipuçları yine de geçerli.',
@@ -186,6 +186,14 @@
       lift: 'İndirirken veya geri dönerken nefes al, efor sırasında (itme, çekme, kaldırma) nefes ver. Nefesini asla uzun süre tutma.',
       core: 'Bükülürken veya kaldırırken nefes ver, kontrollü geri dönerken nefes al.',
       cardio: 'Burun ve ağızdan sakin ve düzenli nefes al. Hâlâ kısa cümlelerle konuşabilmelisin.',
+    },
+    voice: {
+      tip: 'Önemli ipucu:', mistake: 'Sık yapılan hata:',
+      title: 'Sesli anlatım', srcFile: 'Stüdyo kaydı · Türkçe', srcTts: ({ name }) => `Cihaz sesi · ${name}`, off: 'Kapalı – sadece animasyon',
+      loading: 'Sesler yükleniyor …', novoice: 'Bu cihazda Türkçe ses yüklü değil. Ayarlar → Metin okuma bölümünden ekleyebilirsin.',
+      notts: 'Bu cihaz sesli çıktıyı desteklemiyor.', error: 'Sesli anlatım kullanılamıyor – animasyon sessiz devam ediyor.',
+      range: 'ila',
+      abbr: [['(\\d) sn\\b', '$1 saniye'], ['(^|\\s)ör\\.', '$1örneğin'], ['km/s', 'kilometre/saat'], ['%(\\d)', 'yüzde $1']],
     },
     muscle: {
       quads: 'Ön bacak', glutes: 'Kalça', hamstrings: 'Arka bacak', lowerBack: 'Bel', back: 'Üst sırt', lats: 'Kanat (lat)',

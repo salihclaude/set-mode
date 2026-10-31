@@ -173,7 +173,7 @@
       note: 'Nota', up: 'Subir', down: 'Bajar',
     },
     info: {
-      title: 'Explicar ejercicio', play: 'Reproducir animación', stop: 'Detener animación',
+      title: 'Explicar ejercicio', play: 'Reproducir animación', pause: 'Pausar', stop: 'Detener animación',
       phase: { start: 'Inicio', exec: 'Ejecución', end: 'Posición final' },
       view: { side: 'Vista lateral', front: 'Vista frontal', top: 'Vista desde arriba' },
       noAnim: 'Animación próximamente', noAnimText: 'Este ejercicio aún no tiene animación. Los consejos de abajo siguen siendo válidos.',
@@ -187,6 +187,14 @@
       lift: 'Inspira al bajar o volver, espira durante el esfuerzo (empujar, tirar, levantar). Nunca aguantes la respiración mucho tiempo.',
       core: 'Espira al encogerte o elevar, inspira al volver con control.',
       cardio: 'Respira con calma y de forma regular por nariz y boca. Deberías poder hablar con frases cortas.',
+    },
+    voice: {
+      tip: 'Consejo clave:', mistake: 'Error común:',
+      title: 'Voz en off', srcFile: 'Grabación de estudio · Español', srcTts: ({ name }) => `Voz del dispositivo · ${name}`, off: 'Desactivada – solo animación',
+      loading: 'Cargando voces …', novoice: 'No hay ninguna voz en español instalada en este dispositivo. Puedes añadirla en Ajustes → Síntesis de voz.',
+      notts: 'Este dispositivo no admite salida de voz.', error: 'Voz no disponible: la animación sigue sin sonido.',
+      range: 'a',
+      abbr: [['\\brep\\.', 'repeticiones'], ['\\baprox\\.', 'aproximadamente'], ['p\\. ej\\.', 'por ejemplo'], ['(\\d) s\\b', '$1 segundos'], ['\\brpm\\b', 'revoluciones por minuto'], ['km/h', 'kilómetros por hora'], [' %', ' por ciento']],
     },
     muscle: {
       quads: 'Cuádriceps', glutes: 'Glúteos', hamstrings: 'Isquiotibiales', lowerBack: 'Zona lumbar', back: 'Espalda alta', lats: 'Dorsales',

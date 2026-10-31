@@ -57,6 +57,9 @@ const I = {
   edit: svg(P('M4 20h4L19 9l-4-4L4 16v4z')),
   play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
   stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4.5" height="14" rx="1.5"/><rect x="13.5" y="5" width="4.5" height="14" rx="1.5"/></svg>',
+  speaker: svg(P('M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z') + P('M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11')),
+  mute: svg(P('M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z') + P('m16 9.5 5 5M21 9.5l-5 5')),
   film: svg('<rect x="3" y="5" width="18" height="14" rx="3"/>' + P('M10 9.5v5l4-2.5z')),
   lungs: svg(P('M12 4v7M12 11c-2 0-3 1-3 3M12 11c2 0 3 1 3 3M8.5 7C5 7 3 12 3 16c0 2 1 3 3 3 2.5 0 3-2 3-5V9.5M15.5 7C19 7 21 12 21 16c0 2-1 3-3 3-2.5 0-3-2-3-5V9.5')),
   target: svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>'),
@@ -65,11 +68,16 @@ const I = {
 };
 /* Markenzeichen: Schalter „an“ – SET Mode */
 const LOGO = '<svg viewBox="0 0 48 28" aria-hidden="true"><rect x="1" y="1" width="46" height="26" rx="13" fill="currentColor"/><circle cx="33" cy="14" r="9" fill="#0b0d05"/></svg>';
-const WORDMARK = `<span class="wordmark">${LOGO}<span><b>SET</b> Mode</span></span>`;
+/* Wortmarke = SET-Mode-Schalter (binär: links OFF, rechts ON). Bedienung siehe „SET-Mode-Schalter“ unten. */
+function wordmark() {
+  const on = isSetModeOn();
+  return `<span class="wordmark" role="switch" tabindex="0" aria-checked="${on}" aria-label="SET Mode" data-switch>
+    <span class="setswitch"><span class="knob"></span></span><span><b>SET</b> Mode</span></span>`;
+}
 
 /* ---------- Zustand ---------- */
 
-function defaultSettings() { return { barWeight: 20, deloadWeeks: 6, sessionsPerWeek: 3, restTimer: true, lang: null }; }
+function defaultSettings() { return { barWeight: 20, deloadWeeks: 6, sessionsPerWeek: 3, restTimer: true, lang: null, setMode: true, voice: true }; }
 function defaultState() {
   return {
     version: 3, setupDone: false, profile: null, plan: [], nextDay: 0,
@@ -143,6 +151,32 @@ function save() {
 
 let state = load();
 I18N.set(state.settings.lang);
+
+/* ---------- SET Mode: zentraler Theme-State ----------
+   state.settings.setMode (true = ON/Standarddesign, false = OFF/monochrom)
+   wird als html[data-setmode] gesetzt; alle Farben hängen an CSS-Variablen. */
+function isSetModeOn() { return state.settings.setMode !== false; }
+let themeAnimTimer;
+function applySetMode(animate) {
+  const root = document.documentElement;
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (animate && !reduce) {
+    root.classList.add('theme-anim');
+    clearTimeout(themeAnimTimer);
+    themeAnimTimer = setTimeout(() => root.classList.remove('theme-anim'), 700);
+  }
+  root.dataset.setmode = isSetModeOn() ? 'on' : 'off';
+  document.querySelectorAll('[data-switch]').forEach(el => el.setAttribute('aria-checked', String(isSetModeOn())));
+}
+function setSetMode(on) {
+  if (on === isSetModeOn()) { applySetMode(false); return; }
+  state.settings.setMode = on;
+  save();
+  vibrate(12);
+  applySetMode(true);
+}
+applySetMode(false);
+
 const ui = {
   tab: 'home', wiz: null, wizDir: 'f', draft: null, planDay: 0, open: null, modal: null,
   summary: null, histEx: null, fatigue: null, rest: null, anim: {}, lastTab: null, lastModal: null,
@@ -321,7 +355,7 @@ function langPicker(compact) {
 function viewWelcome() {
   const f = (icon, tt, s) => `<li><span>${I[icon]}</span><span><b>${esc(tt)}</b><small>${esc(s)}</small></span></li>`;
   return `<div class="welcome">
-    <div class="welcome-top">${WORDMARK}${langPicker(true)}</div>
+    <div class="welcome-top">${wordmark()}${langPicker(true)}</div>
     <div class="welcome-logo">${LOGO}</div>
     <h1>${esc(t('welcome.title1'))}<br><span class="ac">${esc(t('welcome.title2'))}</span></h1>
     <p class="lead">${esc(t('welcome.lead'))}</p>
@@ -635,6 +669,7 @@ async function keepAwake(on) {
 }
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && state.active) keepAwake(true);
+  if (document.visibilityState === 'hidden') EXPLAIN.pause();
 });
 
 /* ---------- Pausen-Timer ---------- */
@@ -701,8 +736,9 @@ function render() {
   // Erklär-Animation im geöffneten Fenster vorbereiten (startet erst auf Tippen)
   if (ui.modal?.type === 'info') {
     const host = document.getElementById('animHost');
-    if (host && ANIM.has(ui.modal.ref)) ANIM.mount(host, ui.modal.ref);
-  } else ANIM.stop();
+    EXPLAIN.mount(host, ui.modal.ref);
+  } else EXPLAIN.stop();
+  bindSheetSwipe();
 
   if (ui.tab !== 'workout' || !ui.rest) $overlay.innerHTML = '';
   else if (!document.getElementById('rest')) buildRest();
@@ -734,7 +770,7 @@ function viewHome() {
   const missing = allExercises().filter(e => e.weight == null).length;
   const wd = t('weekdays');
 
-  let h = `<div class="topbar">${WORDMARK}</div>
+  let h = `<div class="topbar">${wordmark()}</div>
     <div class="eyebrow">${esc(now.toLocaleDateString(I18N.locale(), { weekday: 'long', day: 'numeric', month: 'long' }))}</div>
     <h1>${esc(greet)}${name ? ', ' + esc(name) : ''}</h1>
     <div class="week">${wk.days.map((d, i) => {
@@ -914,16 +950,16 @@ function lineChart(points, { h = 150, unit = 'kg' } = {}) {
   const last = points[points.length - 1];
   const gid = 'g' + uid();
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('history.title'))}">
-    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8f542" stop-opacity=".3"/><stop offset="1" stop-color="#c8f542" stop-opacity="0"/></linearGradient></defs>
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ac);stop-opacity:.3"/><stop offset="1" style="stop-color:var(--ac);stop-opacity:0"/></linearGradient></defs>
     <line x1="${pl}" x2="${W - pr}" y1="${y(max)}" y2="${y(max)}" stroke="rgba(255,255,255,.08)" stroke-dasharray="3 4"/>
     <line x1="${pl}" x2="${W - pr}" y1="${y(min)}" y2="${y(min)}" stroke="rgba(255,255,255,.08)" stroke-dasharray="3 4"/>
-    <text x="${pl}" y="${y(max) - 7}" fill="#6c717a" font-size="11" font-weight="600">${fmt(max)} ${unit}</text>
-    <text x="${pl}" y="${y(min) - 7}" fill="#6c717a" font-size="11" font-weight="600">${fmt(min)} ${unit}</text>
+    <text x="${pl}" y="${y(max) - 7}" style="fill:var(--tx3)" font-size="11" font-weight="600">${fmt(max)} ${unit}</text>
+    <text x="${pl}" y="${y(min) - 7}" style="fill:var(--tx3)" font-size="11" font-weight="600">${fmt(min)} ${unit}</text>
     <path d="${area}" fill="url(#${gid})"/>
-    <path d="${d}" fill="none" stroke="#c8f542" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-    ${points.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="${i === points.length - 1 ? 5 : 2.5}" fill="#c8f542" ${i === points.length - 1 ? 'stroke="#000" stroke-width="2"' : ''}/>`).join('')}
-    <text x="${W - pr}" y="${H - 5}" fill="#6c717a" font-size="11" text-anchor="end">${fmtDate(last.x, { day: '2-digit', month: '2-digit' })}</text>
-    <text x="${pl}" y="${H - 5}" fill="#6c717a" font-size="11">${fmtDate(points[0].x, { day: '2-digit', month: '2-digit' })}</text>
+    <path d="${d}" fill="none" style="stroke:var(--ac)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${points.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="${i === points.length - 1 ? 5 : 2.5}" style="fill:var(--ac)" ${i === points.length - 1 ? 'stroke="#000" stroke-width="2"' : ''}/>`).join('')}
+    <text x="${W - pr}" y="${H - 5}" style="fill:var(--tx3)" font-size="11" text-anchor="end">${fmtDate(last.x, { day: '2-digit', month: '2-digit' })}</text>
+    <text x="${pl}" y="${H - 5}" style="fill:var(--tx3)" font-size="11">${fmtDate(points[0].x, { day: '2-digit', month: '2-digit' })}</text>
   </svg>`;
 }
 
@@ -934,9 +970,9 @@ function barChart(vals, labels) {
     const x = i * slot + (slot - bw) / 2;
     const bh = v ? Math.max(4, (v / max) * (H - pb - pt)) : 3;
     const y = H - pb - bh, last = i === n - 1, cx = (x + bw / 2).toFixed(1);
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="6" fill="${last ? '#c8f542' : v ? 'rgba(200,245,66,.3)' : 'rgba(255,255,255,.07)'}"/>
-      ${v && (last || v === max) ? `<text x="${cx}" y="${(y - 6).toFixed(1)}" fill="${last ? '#c8f542' : '#a4a9b1'}" font-size="10.5" font-weight="700" text-anchor="middle">${fmtVol(v)}</text>` : ''}
-      <text x="${cx}" y="${H - 5}" fill="${last ? '#a4a9b1' : '#6c717a'}" font-size="10" text-anchor="middle">${esc(labels[i])}</text>`;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="6" style="fill:${last ? 'var(--ac)' : v ? 'color-mix(in srgb, var(--ac) 30%, transparent)' : 'rgba(255,255,255,.07)'}"/>
+      ${v && (last || v === max) ? `<text x="${cx}" y="${(y - 6).toFixed(1)}" style="fill:${last ? 'var(--ac)' : 'var(--tx2)'}" font-size="10.5" font-weight="700" text-anchor="middle">${fmtVol(v)}</text>` : ''}
+      <text x="${cx}" y="${H - 5}" style="fill:${last ? 'var(--tx2)' : 'var(--tx3)'}" font-size="10" text-anchor="middle">${esc(labels[i])}</text>`;
   }).join('')}</svg>`;
 }
 
@@ -1065,6 +1101,109 @@ function viewPlan() {
 
 /* ---------- Übung erklären ---------- */
 
+/* ---------- Erklär-Player: Animation + Voiceover gemeinsam steuern ----------
+   Zustände: idle → playing ⇄ paused → idle. Mit Voiceover läuft die Animation
+   satzweise mit: Während Name und Startposition beschrieben werden, steht die
+   Figur in der Startposition; danach laufen Wiederholungen, bis die Stimme
+   fertig ist – die letzte Wiederholung wird sauber zu Ende gespielt. */
+const EXPLAIN = {
+  ref: null, host: null, mode: 'idle', withVoice: false, run: 0,
+  mount(host, ref) {
+    this.stop();
+    this.ref = ref; this.host = host;
+    if (host && ANIM.has(ref)) ANIM.mount(host, ref);
+    this.ui();
+  },
+  toggle() {
+    if (this.mode === 'playing') this.pause();
+    else if (this.mode === 'paused') this.resume();
+    else this.start();
+  },
+  start() {
+    if (!this.host) return;
+    const run = ++this.run;
+    const done = () => { if (run === this.run) { this.mode = 'idle'; this.ui(); } };
+    this.mode = 'playing';
+    this.withVoice = false;
+    const src = state.settings.voice ? VOICE.source(this.ref, I18N.lang) : { type: 'none' };
+    if (src.type !== 'none') {
+      const cyclic = ANIM.cyclic(this.ref);
+      // Satz 0 = Name, danach Ausführung: erst beschriebene Startposition halten
+      const loopFrom = cyclic ? 0 : (src.script.execCount >= 2 ? 2 : 1);
+      const ok = VOICE.play(this.ref, I18N.lang, {
+        onSentence: i => {
+          if (run !== this.run) return;
+          if (i < loopFrom) ANIM.hold('start');
+          else if (!ANIM.isRunning()) ANIM.play({ loop: true });
+        },
+        onEnd: () => { if (run === this.run) ANIM.finish(done); },
+        onError: () => {
+          if (run !== this.run) return;
+          this.withVoice = false;
+          toast(t('voice.error'));
+          ANIM.play({ onEnd: done });
+          this.ui();
+        },
+      });
+      this.withVoice = !!ok;
+    }
+    if (!this.withVoice) ANIM.play({ onEnd: done });
+    this.ui();
+  },
+  pause() {
+    if (this.mode !== 'playing') return;
+    VOICE.pause(); ANIM.pause();
+    this.mode = 'paused'; this.ui();
+  },
+  resume() {
+    if (this.mode !== 'paused') return;
+    if (this.withVoice) VOICE.resume();
+    ANIM.resume();
+    this.mode = 'playing'; this.ui();
+  },
+  phase(ph) {
+    if (this.mode === 'playing') this.pause();
+    ANIM.showPhase(ph);
+    this.host?.classList.add('started');
+  },
+  stop() {
+    this.run++;
+    VOICE.stop(); ANIM.stop();
+    this.mode = 'idle'; this.withVoice = false;
+  },
+  setVoice(on) {
+    state.settings.voice = on; save();
+    // während der Wiedergabe ausschalten: Stimme sofort aus, Animation läuft zu Ende
+    if (!on && this.withVoice) { VOICE.stop(); this.withVoice = false; if (this.mode !== 'idle') ANIM.finish(() => { this.mode = 'idle'; this.ui(); }); }
+    this.ui();
+  },
+  ui() {
+    const h = this.host;
+    if (h) {
+      if (this.mode !== 'idle') h.classList.add('started');
+      h.classList.toggle('playing', this.mode === 'playing');
+      const b = h.querySelector('.anim-play');
+      if (b) b.setAttribute('aria-label', t(this.mode === 'playing' ? 'info.pause' : 'info.play'));
+    }
+    const bar = document.getElementById('voiceBar');
+    if (bar && this.ref) bar.innerHTML = voiceBarInner(this.ref);
+  },
+};
+VOICE.onChange(() => EXPLAIN.ui());
+
+/* Voiceover-Leiste: Quelle (Aufnahme/Gerätestimme), Ein/Aus, ehrliche Hinweise */
+function voiceBarInner(ref) {
+  const src = VOICE.source(ref, I18N.lang);
+  const avail = src.type !== 'none';
+  const on = state.settings.voice && avail;
+  const sub = !avail ? t(`voice.${src.reason === 'notts' ? 'notts' : src.reason === 'loading' ? 'loading' : 'novoice'}`)
+    : !state.settings.voice ? t('voice.off')
+    : src.type === 'file' ? t('voice.srcFile') : t('voice.srcTts', { name: src.voice.name });
+  return `<span class="vb-ic ${on ? 'on' : ''}">${on ? I.speaker : I.mute}</span>
+    <span class="t"><b>${esc(t('voice.title'))}${on && EXPLAIN.withVoice && EXPLAIN.mode !== 'idle' ? '<i class="eq"><i></i><i></i><i></i></i>' : ''}</b><span>${esc(sub)}</span></span>
+    <button class="sw ${on ? 'on' : ''}" data-a="voiceToggle" role="switch" aria-checked="${on}" aria-label="${esc(t('voice.title'))}" ${avail ? '' : 'disabled'}></button>`;
+}
+
 /* Übung zur ID finden: Plan, laufendes Training oder Planvorschau */
 function resolveEx(id) {
   return findEx(id) || state.active?.items.find(x => x.exId === id) || (ui.draft || []).flatMap(d => d.exercises).find(x => x.id === id) || null;
@@ -1086,13 +1225,15 @@ function viewInfo(m) {
   if (hasAnim) {
     h += `<div class="anim" id="animHost">
       <div class="anim-stage"></div>
-      <button class="anim-play" data-a="animToggle" aria-label="${esc(t('info.play'))}"><span class="pl">${I.play}</span><span class="st">${I.stop}</span></button>
+      <button class="anim-play" data-a="animToggle" aria-label="${esc(t('info.play'))}"><span class="pl">${I.play}</span><span class="pa">${I.pause}</span></button>
       <span class="anim-view">${esc(t(`info.view.${view}`))}</span>
       ${cyclic ? '' : `<div class="phases">${['start', 'exec', 'end'].map(ph => `<button data-a="animPhase" data-phase="${ph}">${esc(t(`info.phase.${ph}`))}</button>`).join('')}</div>`}
     </div>`;
   } else {
     h += `<div class="anim placeholder"><div class="ph-ic">${I.film}</div><b>${esc(t('info.noAnim'))}</b><p>${esc(ref ? t('info.noAnimText') : t('info.custom'))}</p></div>`;
   }
+
+  if (known) h += `<div class="voicebar" id="voiceBar">${voiceBarInner(ref)}</div>`;
 
   // B) Tipps und Hinweise
   const sec = (icon, title, body) => `<section class="info-sec"><h4>${I[icon]}${esc(title)}</h4>${body}</section>`;
@@ -1116,6 +1257,67 @@ function openInfo(id) {
   if (!e) return;
   ui.modal = { type: 'info', id, ref: e.ref || null };
   render();
+}
+
+/* ---------- Bottom Sheet: nach unten wischen zum Schließen ----------
+   - Startet nur, wenn der Inhalt ganz oben steht (scrollTop 0) und der Finger
+     eindeutig nach unten zieht – sonst bleibt es normales Scrollen.
+   - Am Griff/Kopf lässt sich immer ziehen. Eingabefelder lösen nichts aus.
+   - Schließt ab 30 % der Höhe (max. 140 px) oder bei schnellem Wischen,
+     sonst federt das Fenster zurück. Auf breiten Bildschirmen (Fenster mittig) aus. */
+const SWIPE = { minStart: 10, ratio: 0.3, maxDist: 140, minFlick: 50, flickSpeed: 0.6 };
+function closeModalAnimated(sheet, bg) {
+  sheet.style.transition = 'transform .22s cubic-bezier(.3,.7,.4,1)';
+  sheet.style.transform = 'translateY(105%)';
+  if (bg) { bg.style.transition = 'background-color .22s'; bg.style.backgroundColor = 'rgba(0, 0, 0, 0)'; }
+  EXPLAIN.stop(); // Stimme und Animation sofort stoppen
+  setTimeout(() => { if (ui.modal) { ui.modal = null; render(); } }, 210);
+}
+function bindSheetSwipe() {
+  const sheet = document.querySelector('.modal-bg:not(.closing) .sheet');
+  if (!sheet || window.matchMedia('(min-width: 700px)').matches) return;
+  const bg = sheet.parentElement;
+  let g = null;
+  sheet.addEventListener('touchstart', ev => {
+    if (ev.touches.length !== 1 || ev.target.closest('input, textarea, select, .setswitch')) { g = null; return; }
+    const tch = ev.touches[0];
+    const onHandle = !!ev.target.closest('.grab, .info-head, h3');
+    g = { y0: tch.clientY, x0: tch.clientX, t0: performance.now(), dragging: false, decided: false, onHandle, lastY: tch.clientY, lastT: performance.now(), v: 0 };
+  }, { passive: true });
+  sheet.addEventListener('touchmove', ev => {
+    if (!g) return;
+    const tch = ev.touches[0];
+    const dy = tch.clientY - g.y0, dx = tch.clientX - g.x0;
+    if (!g.decided) {
+      if (Math.abs(dy) < SWIPE.minStart && Math.abs(dx) < SWIPE.minStart) return;
+      g.decided = true;
+      // nur nach unten, überwiegend vertikal und nur vom oberen Rand des Inhalts
+      g.dragging = dy > 0 && Math.abs(dy) > Math.abs(dx) * 1.2 && (g.onHandle || sheet.scrollTop <= 0);
+      if (g.dragging) { sheet.style.transition = 'none'; bg.style.transition = 'none'; }
+    }
+    if (!g.dragging) return;
+    ev.preventDefault(); // Scrollen/Neuladen-Geste des Browsers unterdrücken
+    const now = performance.now();
+    g.v = (tch.clientY - g.lastY) / Math.max(1, now - g.lastT);
+    g.lastY = tch.clientY; g.lastT = now;
+    const off = Math.max(0, dy);
+    sheet.style.transform = `translateY(${off}px)`;
+    // nur der abgedunkelte Hintergrund hellt auf – das Fenster selbst bleibt deckend
+    bg.style.backgroundColor = `rgba(0, 0, 0, ${(0.66 * Math.max(0.3, 1 - off / (sheet.offsetHeight * 1.2))).toFixed(3)})`;
+  }, { passive: false });
+  const end = () => {
+    if (!g || !g.dragging) { g = null; return; }
+    const off = Math.max(0, g.lastY - g.y0), v = g.v;
+    const limit = Math.min(SWIPE.maxDist, sheet.offsetHeight * SWIPE.ratio);
+    g = null;
+    if (off > limit || (off > SWIPE.minFlick && v > SWIPE.flickSpeed)) { closeModalAnimated(sheet, bg); return; }
+    sheet.style.transition = 'transform .28s cubic-bezier(.2,.8,.2,1)';
+    bg.style.transition = 'background-color .28s';
+    sheet.style.transform = '';
+    bg.style.backgroundColor = '';
+  };
+  sheet.addEventListener('touchend', end);
+  sheet.addEventListener('touchcancel', end);
 }
 
 function viewModal() {
@@ -1274,8 +1476,9 @@ const actions = {
 
   // Übung erklären
   info: (el, ev) => { ev.stopPropagation(); openInfo(el.dataset.id); },
-  animToggle: () => ANIM.toggle(),
-  animPhase: el => ANIM.showPhase(el.dataset.phase),
+  animToggle: () => EXPLAIN.toggle(),
+  animPhase: el => EXPLAIN.phase(el.dataset.phase),
+  voiceToggle: () => EXPLAIN.setVoice(!state.settings.voice),
 
   // Training
   openItem: el => {
@@ -1508,7 +1711,48 @@ document.addEventListener('change', ev => {
   const fn = changes[el.dataset.c];
   if (fn) fn(el, ev);
 });
+/* ---------- SET-Mode-Schalter: Tippen oder horizontal ziehen ----------
+   Binär: Beim Loslassen rastet der Knopf links (OFF) oder rechts (ON) ein. */
+const SWITCH_TRAVEL = 16;
+let swDrag = null, swSuppressClick = false;
+document.addEventListener('pointerdown', ev => {
+  const track = ev.target.closest('.setswitch');
+  if (!track) return;
+  const sw = track.closest('[data-switch]');
+  swDrag = { sw, track, knob: track.querySelector('.knob'), id: ev.pointerId, x0: ev.clientX, base: isSetModeOn() ? SWITCH_TRAVEL : 0, pos: null };
+  try { track.setPointerCapture(ev.pointerId); } catch (e) { }
+});
+document.addEventListener('pointermove', ev => {
+  const d = swDrag;
+  if (!d || ev.pointerId !== d.id) return;
+  const dx = ev.clientX - d.x0;
+  if (d.pos == null && Math.abs(dx) < 4) return;
+  d.pos = clamp(d.base + dx, 0, SWITCH_TRAVEL);
+  d.track.classList.add('dragging');
+  d.knob.style.setProperty('--knob-x', d.pos + 'px');
+});
+function endSwitchDrag(ev) {
+  const d = swDrag;
+  if (!d || ev.pointerId !== d.id) return;
+  swDrag = null;
+  d.track.classList.remove('dragging');
+  d.knob.style.removeProperty('--knob-x');
+  if (d.pos != null) {
+    swSuppressClick = true; // der folgende click soll nicht nochmals umschalten
+    setSetMode(d.pos >= SWITCH_TRAVEL / 2);
+  }
+}
+document.addEventListener('pointerup', endSwitchDrag);
+document.addEventListener('pointercancel', endSwitchDrag);
+document.addEventListener('click', ev => {
+  const sw = ev.target.closest('[data-switch]');
+  if (!sw) return;
+  if (swSuppressClick) { swSuppressClick = false; return; }
+  setSetMode(!isSetModeOn());
+});
+
 document.addEventListener('keydown', ev => {
+  if ((ev.key === ' ' || ev.key === 'Enter') && ev.target.matches?.('[data-switch]')) { ev.preventDefault(); setSetMode(!isSetModeOn()); return; }
   // Enter im Eingabefeld schließt die Tastatur, Escape schließt Fenster
   if (ev.key === 'Enter' && ev.target.matches('input')) ev.target.blur();
   if (ev.key === 'Escape' && ui.modal) { ui.modal = null; render(); }
@@ -1522,6 +1766,7 @@ setInterval(() => {
 
 /* ---------- Start ---------- */
 
+VOICE.init();
 save(); // Migration (z. B. Sprache, v3-Felder) sofort sichern
 if (!state.setupDone || !state.plan.length) {
   ui.wiz = newWizard();

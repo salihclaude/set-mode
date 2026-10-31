@@ -14,11 +14,15 @@
   <link rel="icon" href="icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    /* SET Mode vor dem ersten Zeichnen anwenden (kein Aufblitzen des falschen Designs) */
+    try { if (JSON.parse(localStorage.getItem('fitplan.v1')).settings.setMode === false) document.documentElement.dataset.setmode = 'off'; } catch (e) { }
+  </script>
 </head>
 <body>
   <main id="app"></main>
   <div id="overlay"></div>
-  <!-- Reihenfolge: Sprachkern → Sprachdateien → Daten → Animationen → App -->
+  <!-- Reihenfolge: Sprachkern → Sprachdateien → Daten → Animationen → Voiceover → App -->
   <script src="i18n.js"></script>
   <script src="lang/de.js"></script>
   <script src="lang/en.js"></script>
@@ -26,6 +30,7 @@
   <script src="lang/tr.js"></script>
   <script src="data.js"></script>
   <script src="anim.js"></script>
+  <script src="voice.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

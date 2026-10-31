@@ -1,5 +1,5 @@
 // SET Mode – Offline-Cache. Bei Änderungen an der App die Version erhöhen.
-const CACHE = 'setmode-v4';
+const CACHE = 'setmode-v5';
 const FILES = [
   './',
   'index.html',
@@ -11,6 +11,8 @@ const FILES = [
   'lang/tr.js',
   'data.js',
   'anim.js',
+  'voice.js',
+  'audio/manifest.json',
   'app.js',
   'manifest.webmanifest',
   'icons/icon-192.png',

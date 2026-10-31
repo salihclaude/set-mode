@@ -14,8 +14,8 @@ const ANIM = (() => {
   const G = 190; // Bodenlinie
   const D = [-5, -3]; // Versatz der hinteren Körperseite (Tiefe)
   const COL = {
-    near: '#e9ebee', far: '#7b8089', torso: '#c8f542', torsoFar: '#8fae2c', head: '#e9ebee',
-    metal: '#9aa0a8', plate: '#2b2e34', plateRim: '#c8f542', frame: '#3a3d44', pad: '#4a4e57', cable: '#7d838c', floor: 'rgba(255,255,255,.12)',
+    near: '#e9ebee', far: '#7b8089', torso: 'var(--ac)', torsoFar: 'var(--ac2)', head: '#e9ebee',
+    metal: '#9aa0a8', plate: '#2b2e34', plateRim: 'var(--ac)', frame: '#3a3d44', pad: '#4a4e57', cable: '#7d838c', floor: 'rgba(255,255,255,.12)',
   };
 
   const rad = d => d * Math.PI / 180;
@@ -68,10 +68,10 @@ const ANIM = (() => {
     return J;
   }
 
-  const line = (a, b, w, c, extra = '') => `<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"${extra}/>`;
-  const circle = (c, r, fill, extra = '') => `<circle cx="${f1(c[0])}" cy="${f1(c[1])}" r="${r}" fill="${fill}"${extra}/>`;
-  const rect = (x, y, w, h, fill, r = 3) => `<rect x="${f1(x)}" y="${f1(y)}" width="${f1(w)}" height="${f1(h)}" rx="${r}" fill="${fill}"/>`;
-  const poly = (pts, fill) => `<polygon points="${pts.map(p => p.map(f1).join(',')).join(' ')}" fill="${fill}"/>`;
+  const line = (a, b, w, c, extra = '') => `<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}" style="stroke:${c}" stroke-width="${w}" stroke-linecap="round"${extra}/>`;
+  const circle = (c, r, fill, stroke, sw = 2) => `<circle cx="${f1(c[0])}" cy="${f1(c[1])}" r="${r}" style="fill:${fill}${stroke ? `;stroke:${stroke};stroke-width:${sw}` : ''}"/>`;
+  const rect = (x, y, w, h, fill, r = 3) => `<rect x="${f1(x)}" y="${f1(y)}" width="${f1(w)}" height="${f1(h)}" rx="${r}" style="fill:${fill}"/>`;
+  const poly = (pts, fill) => `<polygon points="${pts.map(p => p.map(f1).join(',')).join(' ')}" style="fill:${fill}"/>`;
 
   /* Geräte */
   function prop(o) {
@@ -80,13 +80,13 @@ const ANIM = (() => {
       case 'box': return rect(o.x, o.y, o.w, o.h, o.fill || COL.frame, o.r ?? 4);
       case 'pad': return circle(o.at, o.r || 8, COL.pad);
       case 'line': return line(o.a, o.b, o.w || 5, o.c || COL.frame);
-      case 'plate': return circle(o.at, o.r || 18, COL.plate, ` stroke="${COL.plateRim}" stroke-width="2.5"`) + circle(o.at, 3.5, COL.metal);
+      case 'plate': return circle(o.at, o.r || 18, COL.plate, COL.plateRim, 2.5) + circle(o.at, 3.5, COL.metal);
       case 'db': {
         const a = o.vertical ? 0 : 90, v = dir(a), n = dir(a + 90);
         const p1 = add(o.at, v, -9), p2 = add(o.at, v, 9);
         return line(p1, p2, 3.5, COL.metal) + line(add(p1, n, -6), add(p1, n, 6), 7, COL.plate) + line(add(p2, n, -6), add(p2, n, 6), 7, COL.plate);
       }
-      case 'cable': return line(o.from, o.to, 1.6, COL.cable) + circle(o.from, 5, COL.frame, ` stroke="${COL.cable}" stroke-width="1.5"`);
+      case 'cable': return line(o.from, o.to, 1.6, COL.cable) + circle(o.from, 5, COL.frame, COL.cable, 1.5);
       case 'handle': return circle(o.at, 4, COL.metal);
       case 'rope': return line(o.at, add(o.at, [0, 9]), 4, COL.cable);
       default: return '';
@@ -139,7 +139,7 @@ const ANIM = (() => {
     const P = spec.pose(p);
     const cx = 160, cy = 120, sw = 30;
     let s = (spec.props ? spec.props(P, p) : []).map(prop).join('');
-    s += `<ellipse cx="${cx}" cy="${cy + 4}" rx="${sw + 6}" ry="17" fill="${COL.torso}"/>`;
+    s += `<ellipse cx="${cx}" cy="${cy + 4}" rx="${sw + 6}" ry="17" style="fill:${COL.torso}"/>`;
     for (const side of [-1, 1]) {
       const S = [cx + side * sw, cy];
       const ang = rad(P.arm), v1 = [side * Math.sin(ang), -Math.cos(ang)];
@@ -441,73 +441,110 @@ const ANIM = (() => {
     return `<svg viewBox="0 0 320 200" class="anim-svg" aria-hidden="true">${body}</svg>`;
   }
 
+  /* Player: start (n Wiederholungen oder Schleife), pause/resume, finish
+     (aktuelle Wiederholung zu Ende spielen), hold (Pose zeigen, ohne zu enden).
+     Die Bedienelemente (Play/Pause-Symbol) steuert app.js. */
   let current = null;
+  const REP_MS = TIMING.reduce((s, x) => s + x[1], 0);
+  const CYCLE_MS = 1300;
 
   function mount(host, id) {
     stop();
     const spec = S[id];
     if (!spec || !host) return false;
     const stage = host.querySelector('.anim-stage');
-    const state = { host, spec, stage, raf: 0, t0: 0, playing: false };
-    current = state;
-    draw(state, 0, 'start');
+    current = { host, spec, stage, raf: 0, t0: 0, ticking: false, pausedAt: null, limit: 0, onEnd: null, held: false };
+    draw(current, 0, spec.cyclic ? 'exec' : 'start');
     return true;
   }
 
   function draw(st, p, phase) {
     st.stage.innerHTML = frame(st.spec, p);
     st.host.querySelectorAll('[data-phase]').forEach(b => b.classList.toggle('on', b.dataset.phase === phase));
-    st.host.classList.toggle('playing', st.playing);
+  }
+
+  function poseAt(st, el) {
+    if (st.spec.cyclic) return [(el % CYCLE_MS) / CYCLE_MS, 'exec'];
+    let r = el % REP_MS;
+    for (let i = 0; i < TIMING.length; i++) {
+      const [ph, d] = TIMING[i];
+      if (r <= d) return [i === 0 ? 0 : i === 1 ? ease(r / d) : i === 2 ? 1 : 1 - ease(r / d), ph];
+      r -= d;
+    }
+    return [0, 'start'];
   }
 
   function tick(now) {
     const st = current;
-    if (!st || !st.playing) return;
+    if (!st || !st.ticking) return;
     const el = now - st.t0;
-    if (st.spec.cyclic) {
-      const cyc = 1300, total = cyc * 4;
-      if (el >= total) { st.playing = false; draw(st, 0, 'exec'); return; }
-      draw(st, (el % cyc) / cyc, 'exec');
-    } else {
-      const rep = TIMING.reduce((s, x) => s + x[1], 0);
-      if (el >= rep * REPS) { st.playing = false; draw(st, 0, 'start'); return; }
-      let r = el % rep, p = 0, phase = 'start';
-      for (let i = 0; i < TIMING.length; i++) {
-        const [ph, d] = TIMING[i];
-        if (r <= d) {
-          phase = ph;
-          p = i === 0 ? 0 : i === 1 ? ease(r / d) : i === 2 ? 1 : 1 - ease(r / d);
-          break;
-        }
-        r -= d;
-      }
-      draw(st, p, phase);
-    }
+    if (st.limit && el >= st.limit) { end(st); return; }
+    const [p, phase] = poseAt(st, el);
+    draw(st, p, phase);
     st.raf = requestAnimationFrame(tick);
   }
 
-  function toggle() {
+  function end(st) {
+    st.ticking = false; st.held = false; st.pausedAt = null;
+    cancelAnimationFrame(st.raf);
+    draw(st, 0, st.spec.cyclic ? 'exec' : 'start');
+    const cb = st.onEnd; st.onEnd = null;
+    cb?.();
+  }
+
+  // opts.loop: läuft, bis finish() aufgerufen wird; sonst 3 Wiederholungen (Cardio: 4 Zyklen)
+  function play(opts = {}) {
     const st = current;
     if (!st) return;
-    if (st.playing) { st.playing = false; cancelAnimationFrame(st.raf); draw(st, 0, st.spec.cyclic ? 'exec' : 'start'); return; }
-    st.playing = true;
-    st.t0 = performance.now();
-    st.host.classList.add('started');
+    cancelAnimationFrame(st.raf);
+    st.onEnd = opts.onEnd || null;
+    st.limit = opts.loop ? 0 : (st.spec.cyclic ? CYCLE_MS * 4 : REP_MS * REPS);
+    st.t0 = performance.now(); st.pausedAt = null; st.held = false; st.ticking = true;
     st.raf = requestAnimationFrame(tick);
   }
-
+  function pause() {
+    const st = current;
+    if (!st || !st.ticking) return;
+    st.ticking = false; st.pausedAt = performance.now();
+    cancelAnimationFrame(st.raf);
+  }
+  function resume() {
+    const st = current;
+    if (!st || st.ticking || st.pausedAt == null) return;
+    st.t0 += performance.now() - st.pausedAt; st.pausedAt = null; st.ticking = true;
+    st.raf = requestAnimationFrame(tick);
+  }
+  // Schleife beenden: laufende Wiederholung noch sauber zu Ende spielen
+  function finish(onEnd) {
+    const st = current;
+    if (!st) { onEnd?.(); return; }
+    st.onEnd = onEnd || st.onEnd;
+    if (!st.ticking && st.pausedAt == null) { end(st); return; }
+    const unit = st.spec.cyclic ? CYCLE_MS : REP_MS;
+    const now = st.pausedAt ?? performance.now();
+    st.limit = (Math.floor((now - st.t0) / unit) + 1) * unit;
+  }
+  // Pose anzeigen und halten (z. B. Startposition, während sie beschrieben wird)
+  function hold(phase) {
+    const st = current;
+    if (!st) return;
+    st.ticking = false; st.pausedAt = null; st.held = true;
+    cancelAnimationFrame(st.raf);
+    draw(st, phase === 'end' ? 1 : phase === 'exec' ? 0.5 : 0, phase);
+  }
+  // Phase antippen: Pose zeigen; play()/resume() setzt danach fort
   function showPhase(phase) {
     const st = current;
     if (!st) return;
-    st.playing = false; cancelAnimationFrame(st.raf);
-    st.host.classList.add('started');
+    if (st.ticking) pause();
     draw(st, phase === 'start' ? 0 : phase === 'end' ? 1 : 0.5, phase);
   }
+  const isRunning = () => !!current?.ticking;
 
   function stop() {
-    if (current) { current.playing = false; cancelAnimationFrame(current.raf); }
+    if (current) { current.ticking = false; current.onEnd = null; cancelAnimationFrame(current.raf); }
     current = null;
   }
 
-  return { has: id => !!S[id], cyclic: id => !!S[id]?.cyclic, view: id => S[id]?.view || 'side', mount, toggle, showPhase, stop, frame: (id, p) => S[id] ? frame(S[id], p) : '', ids: () => Object.keys(S) };
+  return { has: id => !!S[id], cyclic: id => !!S[id]?.cyclic, view: id => S[id]?.view || 'side', mount, play, pause, resume, finish, hold, showPhase, isRunning, stop, frame: (id, p) => S[id] ? frame(S[id], p) : '', ids: () => Object.keys(S) };
 })();

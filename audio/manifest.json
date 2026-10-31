@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "note": "Wird von tools/generate-voiceover.js gepflegt. files.<lang>.<übungs-id> = { hash, n, ext }",
+  "files": {}
+}

@@ -173,7 +173,7 @@
       note: 'Note', up: 'Move up', down: 'Move down',
     },
     info: {
-      title: 'Explain exercise', play: 'Play animation', stop: 'Stop animation',
+      title: 'Explain exercise', play: 'Play animation', pause: 'Pause', stop: 'Stop animation',
       phase: { start: 'Start', exec: 'Movement', end: 'End position' },
       view: { side: 'Side view', front: 'Front view', top: 'Top view' },
       noAnim: 'Animation coming soon', noAnimText: 'There is no animation for this exercise yet. The tips below still apply.',
@@ -187,6 +187,14 @@
       lift: 'Breathe in while lowering or returning, breathe out during the effort (pushing, pulling, lifting). Never hold your breath for long.',
       core: 'Breathe out as you curl up or lift, breathe in as you lower with control.',
       cardio: 'Breathe calmly and evenly through nose and mouth. You should still be able to talk in short sentences.',
+    },
+    voice: {
+      tip: 'Key tip:', mistake: 'Common mistake:',
+      title: 'Voiceover', srcFile: 'Studio recording · English', srcTts: ({ name }) => `Device voice · ${name}`, off: 'Off – animation only',
+      loading: 'Loading voices …', novoice: 'No English voice is installed on this device. You can add one under Settings → Text-to-speech.',
+      notts: 'This device does not support speech output.', error: 'Voiceover not available – the animation continues without sound.',
+      range: 'to',
+      abbr: [['\\be\\.g\\.', 'for example'], ['\\bapprox\\.', 'approximately'], ['(\\d) s\\b', '$1 seconds'], ['\\bRPM\\b', 'revolutions per minute'], ['km/h', 'kilometres per hour'], [' %', ' percent']],
     },
     muscle: {
       quads: 'Quads', glutes: 'Glutes', hamstrings: 'Hamstrings', lowerBack: 'Lower back', back: 'Upper back', lats: 'Lats',

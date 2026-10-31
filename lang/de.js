@@ -173,7 +173,7 @@
       note: 'Hinweis', up: 'Nach oben', down: 'Nach unten',
     },
     info: {
-      title: 'Übung erklären', play: 'Animation abspielen', stop: 'Animation stoppen',
+      title: 'Übung erklären', play: 'Animation abspielen', pause: 'Pausieren', stop: 'Animation stoppen',
       phase: { start: 'Start', exec: 'Ausführung', end: 'Endposition' },
       view: { side: 'Seitenansicht', front: 'Ansicht von vorn', top: 'Ansicht von oben' },
       noAnim: 'Animation folgt', noAnimText: 'Für diese Übung gibt es noch keine Animation. Die Tipps unten gelten trotzdem.',
@@ -187,6 +187,14 @@
       lift: 'Beim Absenken bzw. Zurückführen einatmen, bei der Anstrengung (Drücken, Ziehen, Anheben) ausatmen. Nie die Luft lange anhalten.',
       core: 'Beim Einrollen bzw. Anheben ausatmen, beim kontrollierten Zurückgehen einatmen.',
       cardio: 'Ruhig und gleichmäßig durch Nase und Mund atmen. Du solltest noch in kurzen Sätzen sprechen können.',
+    },
+    voice: {
+      tip: 'Wichtiger Tipp:', mistake: 'Häufiger Fehler:',
+      title: 'Sprachausgabe', srcFile: 'Studioaufnahme · Deutsch', srcTts: ({ name }) => `Gerätestimme · ${name}`, off: 'Aus – nur Animation',
+      loading: 'Stimmen werden geladen …', novoice: 'Auf diesem Gerät ist keine deutsche Stimme installiert. Unter Einstellungen → Sprachausgabe (Text-in-Sprache) kannst du eine nachinstallieren.',
+      notts: 'Dieses Gerät unterstützt keine Sprachausgabe.', error: 'Sprachausgabe nicht möglich – die Animation läuft ohne Ton weiter.',
+      range: 'bis',
+      abbr: [['Wdh\\.', 'Wiederholungen'], ['Sek\\.', 'Sekunden'], ['\\bca\\.', 'circa'], ['z\\. B\\.', 'zum Beispiel'], ['\\(KH\\)', 'mit Kurzhanteln'], ['\\bKH\\b', 'Kurzhantel'], ['\\bLH-', 'Langhantel-'], ['km/h', 'Kilometer pro Stunde'], [' %', ' Prozent']],
     },
     muscle: {
       quads: 'Oberschenkel vorne', glutes: 'Po', hamstrings: 'Beinbeuger', lowerBack: 'Unterer Rücken', back: 'Oberer Rücken', lats: 'Latissimus',
