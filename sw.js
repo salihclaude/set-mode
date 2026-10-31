@@ -1,9 +1,10 @@
 // Offline-Cache. Bei Änderungen an der App die Version erhöhen.
-const CACHE = 'fitplan-v1';
+const CACHE = 'fitplan-v2';
 const FILES = [
   './',
   'index.html',
   'styles.css',
+  'data.js',
   'app.js',
   'manifest.webmanifest',
   'icons/icon-192.png',

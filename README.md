@@ -1,7 +1,21 @@
 # Fitnessplaner
 
 Persönliche Trainings-App (Web-App/PWA) für das Galaxy S24 Ultra.
-Ganzkörper A/B/C, 3× pro Woche, ausgelegt auf Fettabbau/Definition, inkl. 20 min Cardio.
+Live: <https://salihclaude.github.io/fitnessplaner/>
+
+## Plan per Fragebogen
+
+Beim ersten Start (oder unter *Plan → Neuen Plan erstellen*) fragt die App:
+Ziel, Erfahrung, Tage pro Woche, Aufteilung, Dauer, Trainingsort, Cardio, Beschwerden,
+Fokus-Bereiche, Körperdaten und Pausen-Timer. Daraus baut `data.js` den Plan:
+
+- **Aufteilung:** 2–3 Tage Ganzkörper (oder PPL), 4 Tage Ober-/Unterkörper, 5 Tage OK/UK + PPL, 6 Tage PPL ×2
+- **Übungen** aus einer Datenbank mit Alternativen. Sie werden nach Gerät gefiltert, belastende Übungen bei
+  Beschwerden ersetzt und an verschiedenen Tagen variiert.
+- **Sätze/Wiederholungen/Pausen** je nach Ziel; zu lange Einheiten werden auf die gewählte Dauer gekürzt
+- **Startgewichte** werden aus Körpergewicht, Geschlecht und Erfahrung geschätzt und lassen sich anpassen.
+
+Der Verlauf bleibt beim Neuerstellen erhalten. Einzelne Übungen lassen sich im Plan gegen Alternativen tauschen.
 
 ## So funktioniert die automatische Anpassung
 
