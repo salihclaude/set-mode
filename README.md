@@ -48,7 +48,7 @@ Ohne Animation zeigt die App einen sauberen Platzhalter „Animation folgt“.
 
 - Gespeichert wird im `localStorage` unter dem Schlüssel `fitplan.v1` (aus Kompatibilitätsgründen unverändert).
   Ältere Daten werden beim Start automatisch übernommen, eigene Übungs- und Tagesnamen bleiben erhalten.
-- Nach Änderungen die Cache-Version in `sw.js` erhöhen (`setmode-v3` → `setmode-v4`). Geräte laden die neue Version
+- Nach Änderungen die Cache-Version in `sw.js` erhöhen (`setmode-v4` → `setmode-v5`). Geräte laden die neue Version
   im Hintergrund und zeigen sie beim nächsten Öffnen.
 
 ## Aufs Handy bringen

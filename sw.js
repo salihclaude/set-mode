@@ -1,5 +1,5 @@
 // SET Mode – Offline-Cache. Bei Änderungen an der App die Version erhöhen.
-const CACHE = 'setmode-v3';
+const CACHE = 'setmode-v4';
 const FILES = [
   './',
   'index.html',
@@ -18,8 +18,12 @@ const FILES = [
   'icons/icon-maskable-512.png',
 ];
 
+// Beim Installieren immer frisch vom Server laden (nicht aus dem HTTP-Cache),
+// damit nie alte und neue Dateien gemischt werden.
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE)
+    .then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -37,7 +41,7 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     caches.open(CACHE).then(async c => {
       const cached = await c.match(e.request, { ignoreSearch: true });
-      const fresh = fetch(e.request)
+      const fresh = fetch(e.request, { cache: 'no-cache' })
         .then(res => { if (res.ok) c.put(e.request, res.clone()); return res; })
         .catch(() => cached || c.match('index.html'));
       return cached || fresh;
