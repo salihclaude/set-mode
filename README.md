@@ -4,7 +4,7 @@
 Ein Fragebogen erstellt den passenden Trainingsplan, die App steigert die Gewichte danach automatisch. Jede Übung
 lässt sich per Animation und Tipps erklären.
 
-Live: <https://salihclaude.github.io/fitnessplaner/>
+Live: <https://salihclaude.github.io/set-mode/>
 
 ## Funktionen
 
