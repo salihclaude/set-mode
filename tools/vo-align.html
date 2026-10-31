@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>SET Mode – Voiceover-Ausrichtung</title>
+  <style>body { background: #000; color: #ddd; font: 13px monospace; padding: 12px; }</style>
+</head>
+<body>
+  <!-- Entwicklerwerkzeug: erkennt in einer Sammel-Aufnahme die Pausen zwischen Sätzen und Übungen.
+       Aufruf über die Konsole: await alignBatch('audio/_raw/de_b1.mp3', [{ id, lens: [Zeichen je Satz] }, …])
+       Ergebnis wird von tools/vo-split.js weiterverarbeitet. -->
+  <pre id="out">bereit</pre>
+  <script>
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    async function decode(url) {
+      const buf = await (await fetch(url, { cache: 'no-store' })).arrayBuffer();
+      const audio = await ctx.decodeAudioData(buf);
+      const ch = audio.getChannelData(0);
+      return { ch, sr: audio.sampleRate, duration: audio.duration };
+    }
+
+    // Lautstärke in 10-ms-Fenstern
+    function envelope(ch, sr) {
+      const win = Math.round(sr * 0.01), n = Math.floor(ch.length / win), env = new Float32Array(n);
+      for (let i = 0; i < n; i++) { let s = 0; for (let j = i * win; j < (i + 1) * win; j++) s += ch[j] * ch[j]; env[i] = Math.sqrt(s / win); }
+      return env;
+    }
+
+    // Wählt aus allen Pausen genau die Satzgrenzen (dynamische Programmierung): Satzdauern sollen zur Textlänge passen,
+    // lange Pausen werden bevorzugt. So stören Denkpausen mitten im Satz (z. B. nach „Tipp:“) nicht.
+    function chooseCuts(gaps, lens, t0, t1, exEnd, rate) {
+      const S = lens.length, G = gaps.length;
+      const r = rate || (t1 - t0) * 0.85 / lens.reduce((s, l) => s + l + 6, 0);
+      const cost = (k, a, b) => { const d = b - a; if (d <= 0.05) return 1e6; const x = Math.log(d / (r * (lens[k] + 6))); return x * x; };
+      const reward = (k, g) => g.len * (exEnd.has(k) ? 3 : 1.5);
+      let f = gaps.map((g, j) => cost(0, t0, g.start) - reward(0, g));
+      const back = [];
+      for (let k = 1; k < S - 1; k++) {
+        const nf = new Array(G).fill(Infinity), nb = new Array(G).fill(-1);
+        for (let j = k; j < G; j++) {
+          for (let i = k - 1; i < j; i++) {
+            if (f[i] === Infinity) continue;
+            const v = f[i] + cost(k, gaps[i].end, gaps[j].start) - reward(k, gaps[j]);
+            if (v < nf[j]) { nf[j] = v; nb[j] = i; }
+          }
+        }
+        back.push(nb); f = nf;
+      }
+      let best = Infinity, bj = -1;
+      f.forEach((v, j) => { const tot = v + cost(S - 1, gaps[j].end, t1); if (tot < best) { best = tot; bj = j; } });
+      const idx = [bj];
+      for (let k = back.length - 1; k >= 0; k--) idx.unshift(back[k][idx[0]]);
+      return idx.map(j => gaps[j]);
+    }
+
+    function percentile(arr, p) { const a = Array.from(arr).sort((x, y) => x - y); return a[Math.floor((a.length - 1) * p)]; }
+
+    async function alignBatch(url, exercises) {
+      const { ch, sr, duration } = await decode(url);
+      const env = envelope(ch, sr);
+      const th = Math.max(0.004, percentile(env, 0.95) * 0.05);
+      // stille Abschnitte ≥ 120 ms
+      const gaps = [];
+      let s = null;
+      for (let i = 0; i <= env.length; i++) {
+        const quiet = i < env.length && env[i] < th;
+        if (quiet && s === null) s = i;
+        if (!quiet && s !== null) { if ((i - s) >= 12) gaps.push({ start: s / 100, end: i / 100, len: (i - s) / 100 }); s = null; }
+      }
+      const speechStart = gaps.length && gaps[0].start === 0 ? gaps[0].end : 0;
+      const last = gaps[gaps.length - 1];
+      const speechEnd = last && Math.abs(last.end - env.length / 100) < 0.02 ? last.start : duration;
+      const inner = gaps.filter(g => g.start > speechStart + 0.05 && g.end < speechEnd - 0.05);
+      const lens = exercises.flatMap(e => e.lens);
+      const need = lens.length - 1;
+      const issues = [];
+      if (inner.length < need) return { ok: false, issues: [`zu wenige Pausen: ${inner.length} < ${need}`], duration };
+      // Übergänge zwischen zwei Übungen ([long pause]) – dort sind längere Pausen zu erwarten
+      const exEnd = new Set();
+      exercises.reduce((k, e) => { exEnd.add(k + e.lens.length - 1); return k + e.lens.length; }, 0);
+      let cuts = chooseCuts(inner, lens, speechStart, speechEnd, exEnd, null);
+      // Sprechtempo aus dem ersten Durchlauf schätzen und noch einmal ausrichten
+      const spoken = (speechEnd - speechStart) - cuts.reduce((s, c) => s + c.len, 0);
+      cuts = chooseCuts(inner, lens, speechStart, speechEnd, exEnd, spoken / lens.reduce((s, l) => s + l + 6, 0));
+      // Sätze: zwischen den Schnitten
+      const sentences = [];
+      let t = speechStart;
+      cuts.forEach(c => { sentences.push({ start: t, end: c.start }); t = c.end; });
+      sentences.push({ start: t, end: speechEnd });
+      // Plausibilität: Sprechdauer pro Zeichen ähnlich
+      const rates = sentences.map((x, i) => (x.end - x.start) / (lens[i] + 6));
+      const med = rates.slice().sort((a, b) => a - b)[Math.floor(rates.length / 2)];
+      rates.forEach((r, i) => { if (r < med * 0.45 || r > med * 2.2) issues.push(`Satz ${i + 1}: Dauer passt nicht zur Textlänge (${(r / med).toFixed(2)}×)`); });
+      // Übungen: Grenzen in der Mitte der Pause zwischen zwei Übungen
+      const out = [];
+      let k = 0;
+      exercises.forEach((e, ei) => {
+        const first = k, lastS = k + e.lens.length - 1;
+        const start = ei === 0 ? 0 : (cuts[first - 1].start + cuts[first - 1].end) / 2;
+        const end = ei === exercises.length - 1 ? duration : (cuts[lastS].start + cuts[lastS].end) / 2;
+        out.push({ id: e.id, start: +start.toFixed(3), end: +end.toFixed(3), marks: sentences.slice(first, lastS + 1).map(x => +(x.start - start).toFixed(3)) });
+        k = lastS + 1;
+      });
+      return { ok: issues.length === 0, issues, duration: +duration.toFixed(3), threshold: +th.toFixed(4), pauses: cuts.map(c => +c.len.toFixed(2)), exercises: out };
+    }
+    window.alignBatch = alignBatch;
+  </script>
+</body>
+</html>

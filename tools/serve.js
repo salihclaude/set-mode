@@ -16,6 +16,15 @@ http.createServer((req, res) => {
   if (p.endsWith('/')) p += 'index.html';
   const file = path.normalize(path.join(ROOT, p));
   if (!file.startsWith(ROOT)) { res.writeHead(403); return res.end(); }
+  // Entwicklerwerkzeuge (tools/vo-align.html) speichern Ergebnisse nur nach audio/_raw/ und nur von diesem PC aus
+  if (req.method === 'PUT') {
+    const local = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
+    if (!local || !file.startsWith(path.join(ROOT, 'audio', '_raw') + path.sep)) { res.writeHead(403); return res.end(); }
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', () => fs.writeFile(file, Buffer.concat(chunks), err => { res.writeHead(err ? 500 : 204); res.end(); }));
+    return;
+  }
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404); return res.end('Not found'); }
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });

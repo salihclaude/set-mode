@@ -5,10 +5,11 @@
    Zuordnung:  Übungs-ID + Sprache → Sprechtext → Audioquelle
    - Sprechtext: wird aus den vorhandenen Erklärungstexten der Sprache
      gebaut (lang/<code>.js → ex.<id>: name, exec, cue, mistake).
-   - Quelle 1 (bevorzugt): Aufnahmen audio/<lang>/<id>/<n>.<ext>, gelistet in
-     audio/manifest.json. Sie werden nur genutzt, wenn der Text-Hash zum
-     aktuellen Text passt (geänderter Text → Aufnahme gilt als veraltet).
-     Erzeugen: tools/generate-voiceover.js (siehe VOICEOVER.md).
+   - Quelle 1 (bevorzugt): Studioaufnahmen (ElevenLabs) audio/<lang>/<id>.mp3 mit
+     Satzanfängen (marks), gelistet in audio/manifest.json. Sie werden nur
+     genutzt, wenn der Text-Hash zum aktuellen Text passt (geänderter Text →
+     Aufnahme gilt als veraltet). Ältere Form audio/<lang>/<id>/<n>.<ext>
+     (ein Satz pro Datei) wird weiter unterstützt. Siehe VOICEOVER.md.
    - Quelle 2 (Rückfall): Sprachausgabe des Geräts (Web Speech API), aber nur
      mit einer Stimme der gewählten Sprache – nie mit einer fremden Stimme.
    Wiedergabe satzweise: So folgt die Animation dem Gesprochenen, und
@@ -109,7 +110,11 @@ const VOICE = (() => {
     const sc = id && script(id, lang);
     if (!sc) return { type: 'none', reason: 'text' };
     const f = manifest?.files?.[lang]?.[id];
-    if (f && f.hash === sc.hash && f.n === sc.sentences.length) return { type: 'file', script: sc, ext: f.ext || 'mp3' };
+    if (f && f.hash === sc.hash && f.n === sc.sentences.length) {
+      // eine Datei pro Übung mit Satzanfängen (marks) oder ältere Form: eine Datei pro Satz
+      if (f.file && Array.isArray(f.marks) && f.marks.length === sc.sentences.length) return { type: 'file', script: sc, file: `${f.file}?v=${f.hash}`, marks: f.marks, voice: f.voice };
+      if (!f.file) return { type: 'file', script: sc, ext: f.ext || 'mp3' };
+    }
     if (!ttsSupported()) return { type: 'none', reason: 'notts', script: sc };
     const voice = pickVoice(voices, lang, I18N.meta[lang]?.locale);
     if (!voice) return { type: 'none', reason: voices.length ? 'novoice' : 'loading', script: sc };
@@ -122,9 +127,41 @@ const VOICE = (() => {
     stop();
     const src = source(id, lang);
     if (src.type === 'none') return null;
-    session = { id, lang, src, cb, i: 0, seq: 0, paused: false, audio: null };
-    speakAt(0);
+    session = { id, lang, src, cb, i: 0, seq: 0, paused: false, audio: null, timer: 0 };
+    if (src.file) playTrack(session);
+    else speakAt(0);
     return src;
+  }
+
+  /* Eine Aufnahme für die ganze Übung: Satzwechsel anhand der Zeitmarken melden */
+  function playTrack(s) {
+    const a = new Audio(s.src.file);
+    a.preload = 'auto';
+    s.audio = a;
+    s.i = -1;
+    const marks = s.src.marks;
+    const tick = () => {
+      if (session !== s) return;
+      let i = s.i;
+      while (i + 1 < marks.length && a.currentTime + 0.05 >= marks[i + 1]) i++;
+      if (i !== s.i && i >= 0) { s.i = i; s.cb.onSentence?.(i, s.src.script); }
+    };
+    s.timer = setInterval(tick, 50);
+    const fail = err => {
+      if (session !== s || s.paused) return;
+      halt(s);
+      // z. B. offline und noch nicht im Cache: mit der Gerätestimme ab dem aktuellen Satz weitermachen
+      const voice = ttsSupported() && pickVoice(voices, s.lang, I18N.meta[s.lang]?.locale);
+      if (voice) { s.src = { type: 'tts', script: s.src.script, voice }; speakAt(Math.max(0, s.i)); notify(); return; }
+      session = null;
+      s.cb.onError?.(err);
+    };
+    a.onended = () => { if (session !== s) return; tick(); session = null; halt(s); s.cb.onEnd?.(); };
+    a.onerror = () => fail(a.error);
+    // erster Satz sofort, damit die Animation nicht auf das Laden wartet
+    s.i = 0;
+    s.cb.onSentence?.(0, s.src.script);
+    a.play().catch(err => { if (err?.name !== 'AbortError') fail(err); });
   }
 
   function speakAt(i) {
@@ -160,6 +197,7 @@ const VOICE = (() => {
   }
 
   function halt(s) {
+    if (s?.timer) { clearInterval(s.timer); s.timer = 0; }
     if (s?.audio) { s.audio.onended = s.audio.onerror = null; s.audio.pause(); s.audio.removeAttribute('src'); s.audio = null; }
     if (ttsSupported()) speechSynthesis.cancel();
   }
@@ -175,7 +213,8 @@ const VOICE = (() => {
     const s = session;
     if (!s || !s.paused) return;
     s.paused = false;
-    if (s.audio) s.audio.play().catch(() => speakAt(s.i));
+    if (s.src.file) s.audio?.play().catch(() => { });
+    else if (s.audio) s.audio.play().catch(() => speakAt(s.i));
     else speakAt(s.i);
   }
   function stop() {

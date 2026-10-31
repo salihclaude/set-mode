@@ -194,7 +194,7 @@
       loading: 'Cargando voces …', novoice: 'No hay ninguna voz en español instalada en este dispositivo. Puedes añadirla en Ajustes → Síntesis de voz.',
       notts: 'Este dispositivo no admite salida de voz.', error: 'Voz no disponible: la animación sigue sin sonido.',
       range: 'a',
-      abbr: [['\\brep\\.', 'repeticiones'], ['\\baprox\\.', 'aproximadamente'], ['p\\. ej\\.', 'por ejemplo'], ['(\\d) s\\b', '$1 segundos'], ['\\brpm\\b', 'revoluciones por minuto'], ['km/h', 'kilómetros por hora'], [' %', ' por ciento']],
+      abbr: [['\\b1 s\\b', '1 segundo'], ['\\bRep\\.', 'Repeticiones'], ['\\brep\\.', 'repeticiones'],['\\baprox\\.', 'aproximadamente'], ['p\\. ej\\.', 'por ejemplo'], ['(\\d) s\\b', '$1 segundos'], ['\\brpm\\b', 'revoluciones por minuto'], ['km/h', 'kilómetros por hora'], [' %', ' por ciento']],
     },
     muscle: {
       quads: 'Cuádriceps', glutes: 'Glúteos', hamstrings: 'Isquiotibiales', lowerBack: 'Zona lumbar', back: 'Espalda alta', lats: 'Dorsales',

@@ -194,7 +194,7 @@
       loading: 'Loading voices …', novoice: 'No English voice is installed on this device. You can add one under Settings → Text-to-speech.',
       notts: 'This device does not support speech output.', error: 'Voiceover not available – the animation continues without sound.',
       range: 'to',
-      abbr: [['\\be\\.g\\.', 'for example'], ['\\bapprox\\.', 'approximately'], ['(\\d) s\\b', '$1 seconds'], ['\\bRPM\\b', 'revolutions per minute'], ['km/h', 'kilometres per hour'], [' %', ' percent']],
+      abbr: [['\\b1 s\\b', '1 second'], ['\\be\\.g\\.', 'for example'], ['\\bapprox\\.', 'approximately'], ['(\\d) s\\b', '$1 seconds'], ['\\bRPM\\b', 'revolutions per minute'], ['km/h', 'kilometres per hour'], [' %', ' percent']],
     },
     muscle: {
       quads: 'Quads', glutes: 'Glutes', hamstrings: 'Hamstrings', lowerBack: 'Lower back', back: 'Upper back', lats: 'Lats',

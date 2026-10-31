@@ -19,7 +19,8 @@
   <div class="grid" id="g"></div>
   <script src="../anim.js"></script>
   <script>
-    const only = new URLSearchParams(location.search).get('ids');
+    const q = new URLSearchParams(location.search), only = q.get('ids');
+    if (q.get('w')) document.getElementById('g').style.setProperty('--w', q.get('w'));
     const ids = only ? only.split(',') : ANIM.ids();
     document.getElementById('g').innerHTML = ids.map(id =>
       `<div class="cell"><b>${id}</b><div class="row">${[0, 0.5, 1].map(p => ANIM.frame(id, p)).join('')}</div></div>`).join('');

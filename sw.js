@@ -1,5 +1,7 @@
 // SET Mode – Offline-Cache. Bei Änderungen an der App die Version erhöhen.
-const CACHE = 'setmode-v5';
+const CACHE = 'setmode-v6';
+// Sprachaufnahmen (ca. 80 MB) werden nicht vorab geladen, sondern beim ersten Abspielen gespeichert
+const AUDIO = 'setmode-audio-v1';
 const FILES = [
   './',
   'index.html',
@@ -31,7 +33,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE && k !== AUDIO).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -39,7 +41,14 @@ self.addEventListener('activate', e => {
 // Sofort aus dem Cache (schnell auch bei schlechtem Netz im Gym),
 // im Hintergrund aktualisieren – Updates greifen beim nächsten Öffnen.
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  // Aufnahmen: komplette Datei holen (ohne Range) und für offline behalten; ?v=<hash> unterscheidet Versionen
+  if (/\/audio\/[a-z]{2}\/[^/]+\.mp3$/.test(url.pathname)) {
+    e.respondWith(caches.open(AUDIO).then(async c => (await c.match(url.href)) ||
+      fetch(url.href).then(res => { if (res.status === 200) c.put(url.href, res.clone()); return res; })));
+    return;
+  }
   e.respondWith(
     caches.open(CACHE).then(async c => {
       const cached = await c.match(e.request, { ignoreSearch: true });

@@ -194,7 +194,7 @@
       loading: 'Stimmen werden geladen …', novoice: 'Auf diesem Gerät ist keine deutsche Stimme installiert. Unter Einstellungen → Sprachausgabe (Text-in-Sprache) kannst du eine nachinstallieren.',
       notts: 'Dieses Gerät unterstützt keine Sprachausgabe.', error: 'Sprachausgabe nicht möglich – die Animation läuft ohne Ton weiter.',
       range: 'bis',
-      abbr: [['Wdh\\.', 'Wiederholungen'], ['Sek\\.', 'Sekunden'], ['\\bca\\.', 'circa'], ['z\\. B\\.', 'zum Beispiel'], ['\\(KH\\)', 'mit Kurzhanteln'], ['\\bKH\\b', 'Kurzhantel'], ['\\bLH-', 'Langhantel-'], ['km/h', 'Kilometer pro Stunde'], [' %', ' Prozent']],
+      abbr: [['\\b1 Sek\\.', '1 Sekunde'], ['Wdh\\.', 'Wiederholungen'], ['Sek\\.', 'Sekunden'], ['\\bca\\.', 'circa'], ['z\\. B\\.', 'zum Beispiel'], ['\\(KH\\)', 'mit Kurzhanteln'], ['\\bKH\\b', 'Kurzhantel'], ['\\bLH-', 'Langhantel-'], ['km/h', 'Kilometer pro Stunde'], [' %', ' Prozent']],
     },
     muscle: {
       quads: 'Oberschenkel vorne', glutes: 'Po', hamstrings: 'Beinbeuger', lowerBack: 'Unterer Rücken', back: 'Oberer Rücken', lats: 'Latissimus',

@@ -1,7 +1,7 @@
 {
   "name": "set-mode",
   "displayName": "SET Mode",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "SET Mode – mehrsprachige Trainings-App (PWA) mit Plan-Fragebogen, automatischer Progression und erklärten Übungen",
   "private": true,
   "homepage": "https://salihclaude.github.io/set-mode/",
@@ -10,6 +10,7 @@
     "test": "node tools/test.js",
     "check:i18n": "node tools/check-i18n.js",
     "voiceover": "node tools/generate-voiceover.js",
-    "icons": "node tools/make-icons.js"
+    "icons": "node tools/make-icons.js",
+    "check:anim": "node tools/anim-check.js"
   }
 }

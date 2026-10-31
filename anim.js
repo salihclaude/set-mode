@@ -14,7 +14,8 @@ const ANIM = (() => {
   const G = 190; // Bodenlinie
   const D = [-5, -3]; // Versatz der hinteren Körperseite (Tiefe)
   const COL = {
-    near: '#e9ebee', far: '#7b8089', torso: 'var(--ac)', torsoFar: 'var(--ac2)', head: '#e9ebee',
+    near: '#e9ebee', far: '#7b8089', torso: 'var(--ac)', torsoFar: 'var(--ac2)', head: '#e9ebee', hair: '#4a4e56',
+    shorts: '#5d636d', shortsFar: '#40444b',
     metal: '#9aa0a8', plate: '#2b2e34', plateRim: 'var(--ac)', frame: '#3a3d44', pad: '#4a4e57', cable: '#7d838c', floor: 'rgba(255,255,255,.12)',
   };
 
@@ -22,10 +23,18 @@ const ANIM = (() => {
   const dir = a => [Math.sin(rad(a)), Math.cos(rad(a))];
   const add = (p, v, s = 1) => [p[0] + v[0] * s, p[1] + v[1] * s];
   const lerp = (a, b, p) => a + (b - a) * p;
+  const ease = x => 0.5 - 0.5 * Math.cos(Math.PI * x);
   const lp = (A, B, p) => [lerp(A[0], B[0], p), lerp(A[1], B[1], p)];
   const angleTo = (A, B) => Math.atan2(B[0] - A[0], B[1] - A[1]) * 180 / Math.PI;
   const f1 = n => n.toFixed(1);
 
+  const norm = a => { a = ((a % 360) + 360) % 360; return a > 180 ? a - 360 : a; };
+
+  /* Zwei-Knochen-IK. bend 'knee' / 'elbow' = anatomische Beugerichtung: das Knie beugt nur so,
+     dass der Unterschenkel nach hinten klappt, der Ellbogen nur so, dass der Unterarm nach vorn
+     klappt – egal wie der Körper liegt. So gibt es kein Überstrecken und kein Umklappen mitten in
+     der Bewegung. 'fwd' / 'back' / 'up' / 'down' wählt nach Bildrichtung (nur für Arme, die
+     seitlich vom Körper weg zeigen und daher in der Seitenansicht verkürzt erscheinen). */
   function ik(A, B, l1, l2, bend) {
     const dx = B[0] - A[0], dy = B[1] - A[1];
     const d = Math.min(l1 + l2 - 0.01, Math.max(Math.abs(l1 - l2) + 0.01, Math.hypot(dx, dy) || 0.01));
@@ -33,14 +42,15 @@ const ANIM = (() => {
     const a = Math.acos(Math.max(-1, Math.min(1, (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d))));
     const c1 = [A[0] + l1 * Math.cos(base + a), A[1] + l1 * Math.sin(base + a)];
     const c2 = [A[0] + l1 * Math.cos(base - a), A[1] + l1 * Math.sin(base - a)];
-    const score = { fwd: c => c[0], back: c => -c[0], up: c => -c[1], down: c => c[1] }[bend || 'fwd'];
+    const flex = c => norm(bend === 'knee' ? angleTo(A, c) - angleTo(c, B) : angleTo(c, B) - angleTo(A, c));
+    const score = bend === 'knee' || bend === 'elbow' ? flex : { fwd: c => c[0], back: c => -c[0], up: c => -c[1], down: c => c[1] }[bend || 'fwd'];
     const J = score(c1) >= score(c2) ? c1 : c2;
     const v = [B[0] - J[0], B[1] - J[1]], n = Math.hypot(v[0], v[1]) || 1;
     return [J, [J[0] + v[0] / n * l2, J[1] + v[1] / n * l2]];
   }
 
   /* Hilfen für Handziele */
-  const down = S => [S[0] + 1, S[1] + 90];                                   // Arm hängt gestreckt
+  const down = S => [S[0] + 2, S[1] + L.upper + L.fore - 0.6];               // Arm hängt locker gestreckt
   const hinge = (S, ua, fa) => add(add(S, dir(ua), L.upper), dir(fa), L.fore); // Ellbogenwinkel direkt
   const torsoPt = (S, torso, a, b) => add(add(S, dir(torso), a), dir(torso - 90), b); // a entlang Rumpf, b nach vorn
 
@@ -53,18 +63,23 @@ const ANIM = (() => {
     const ht = P.torso + (P.headTilt || 0);
     J.neck = add(J.sh, dir(ht), L.neck);
     J.head = add(J.neck, dir(ht), L.head);
-    [J.knee, J.ankle] = ik(J.hip, P.ankle, L.thigh, L.shin, P.knee);
+    [J.knee, J.ankle] = ik(J.hip, P.ankle, L.thigh, L.shin, 'knee');
     J.toe = add(J.ankle, dir(P.foot ?? 90), L.foot);
     const hand = typeof P.hand === 'function' ? P.hand(J.sh, P.torso) : P.hand;
-    [J.elbow, J.hand] = ik(J.sh, hand, L.upper, L.fore, P.elbow || 'down');
+    // armsOut: Arme seitlich vom Körper (z. B. Stange im Nacken) – dann Bildrichtung statt Anatomie
+    const armBend = (P.armsOut && (P.elbow || 'down')) || 'elbow';
+    [J.elbow, J.hand] = ik(J.sh, hand, L.upper, L.fore, armBend);
+    J.tHand = hand; J.tAnkle = P.ankle;
     // hintere Seite: gespiegelt per Versatz oder eigene Ziele
     const F = P.far || {};
     J.fhip = add(J.hip, D); J.fsh = add(J.sh, D);
     const fAnkle = F.ankle ? F.ankle : add(P.ankle, D);
-    [J.fknee, J.fankle] = ik(J.fhip, fAnkle, L.thigh, L.shin, F.knee || P.knee);
+    [J.fknee, J.fankle] = ik(J.fhip, fAnkle, L.thigh, L.shin, 'knee');
     J.ftoe = add(J.fankle, dir(F.foot ?? P.foot ?? 90), L.foot);
     let fHand = F.hand ? (typeof F.hand === 'function' ? F.hand(J.fsh, P.torso) : F.hand) : add(hand, D);
-    [J.felbow, J.fhand] = ik(J.fsh, fHand, L.upper, L.fore, F.elbow || P.elbow || 'down');
+    [J.felbow, J.fhand] = ik(J.fsh, fHand, L.upper, L.fore, (P.armsOut && (F.elbow || P.elbow || 'down')) || 'elbow');
+    J.armsOut = !!P.armsOut;
+    J.tfHand = fHand; J.tfAnkle = fAnkle;
     return J;
   }
 
@@ -93,24 +108,68 @@ const ANIM = (() => {
     }
   }
 
+  /* ---------- Körperformen ----------
+     Gliedmaßen sind keine Striche, sondern sich verjüngende Formen (Oberschenkel, Wade,
+     Unterarm …). front = Seite, auf der Muskeln nach vorn wölben (Quadrizeps, Bizeps). */
+  const unit = (A, B) => { const v = [B[0] - A[0], B[1] - A[1]], n = Math.hypot(v[0], v[1]) || 1; return [v[0] / n, v[1] / n]; };
+  // Form entlang A→B: Stützpunkte t (0…1) mit Breite w und Versatz o (positiv = Vorderseite)
+  function limb(A, B, prof, fill, frontSign = 1) {
+    const u = unit(A, B), n = [-u[1] * frontSign, u[0] * frontSign], len = Math.hypot(B[0] - A[0], B[1] - A[1]);
+    const L = [], R = [];
+    for (const [t, w, o = 0] of prof) {
+      const c = add(add(A, u, t * len), n, o);
+      L.push(add(c, n, w / 2)); R.push(add(c, n, -w / 2));
+    }
+    const first = prof[0], last = prof[prof.length - 1];
+    return poly([...L, ...R.reverse()], fill) + circle(add(add(A, u, first[0] * len), n, first[2] || 0), first[1] / 2, fill) + circle(add(add(A, u, last[0] * len), n, last[2] || 0), last[1] / 2, fill);
+  }
+  // Beine/Arme (frontSign -1): bei nach unten zeigendem Glied liegt die Vorderseite in Blickrichtung (rechts)
+  const thigh = (H, K, c) => limb(H, K, [[0, 16, -0.5], [0.4, 14, 0.8], [0.85, 10.5, 0.4], [1, 9.5]], c, -1);
+  const shorts = (H, K, c) => limb(H, add(H, unit(H, K), 19), [[0, 16.4, -0.5], [1, 14.8, 0.7]], c, -1);
+  const shin = (K, A, c) => limb(K, A, [[0, 9.6], [0.28, 10.6, -1.4], [0.7, 7, -0.4], [1, 5.6]], c, -1);
+  const upperArm = (S, E, c) => limb(S, E, [[0, 10.5], [0.45, 9.2, 0.6], [1, 7.2]], c, -1);
+  const foreArm = (E, H, c) => limb(E, add(H, unit(E, H), -3), [[0, 7.4], [0.3, 8.2, 0.5], [1, 5.2]], c, -1);
+  const hand = (E, H, c) => limb(add(H, unit(E, H), -4), add(H, unit(E, H), 3), [[0, 5.6], [0.6, 6.6], [1, 5.6]], c);
+  function foot(Ank, toe, c) {
+    const f = unit(Ank, toe), up = [f[1], -f[0]]; // Fußrücken
+    const P = (a, b) => add(add(Ank, f, a), up, b);
+    return poly([P(-3, 3), P(5, 2.2), P(L.foot - 1, -1.6), P(L.foot + 1.5, -4.2), P(L.foot - 2, -5.6), P(-4, -5.2), P(-5.5, -1.5)], c) + circle(Ank, 3.6, c);
+  }
+  // Rumpf im Profil: Gesäß, Taille, Brustkorb, Schulter
+  function torsoShape(J, c) {
+    const u = dir(J.torso), fwd = dir(J.torso - 90), Pt = (t, o) => add(add(J.hip, u, t * L.torso), fwd, o);
+    const fr = [[-0.06, 7], [0.18, 7.5], [0.45, 8.5], [0.68, 11.5], [0.86, 10.5], [1.03, 6]];
+    const bk = [[1.04, -6.5], [0.86, -8.8], [0.6, -8], [0.4, -7], [0.2, -9.5], [0.04, -11.5], [-0.1, -9]];
+    return poly([...fr.map(([t, o]) => Pt(t, o)), ...bk.map(([t, o]) => Pt(t, o))], c)
+      + poly([Pt(-0.06, 7), Pt(0.2, 7.6), Pt(0.2, -9.6), Pt(0.04, -11.5), Pt(-0.1, -9)], COL.shorts);
+  }
+  function head(J) {
+    const ht = J.torso + (J.headTilt || 0), u = dir(ht), fwd = dir(ht - 90);
+    const C = J.head;
+    return limb(J.sh, J.neck, [[0, 9], [1, 7.5]], COL.near)
+      + circle(add(add(C, fwd, -1.2), u, 0.8), L.head + 0.6, COL.hair)
+      + circle(add(C, fwd, 0.8), L.head - 0.6, COL.head)
+      + circle(add(add(C, fwd, L.head - 0.4), u, -1.5), 2.2, COL.head)              // Nase
+      + circle(add(add(C, fwd, -2.6), u, -0.8), 1.8, '#c4c8ce');                    // Ohr
+  }
+
   function drawSide(spec, p) {
     const P = spec.pose(p);
     const J = solve(P);
+    J.headTilt = P.headTilt;
     const props = spec.props ? spec.props(J, p, P) : [];
-    const back = props.filter(o => !o.front), front = props.filter(o => o.front);
+    const back = props.filter(o => !o.front), fr = props.filter(o => o.front);
     let s = line([10, G], [310, G], 2, COL.floor);
     s += back.map(prop).join('');
-    // hintere Gliedmaßen
-    s += line(J.fhip, J.fknee, 12, COL.far) + line(J.fknee, J.fankle, 10, COL.far) + line(J.fankle, J.ftoe, 7, COL.far);
-    s += line(J.fsh, J.felbow, 9, COL.far) + line(J.felbow, J.fhand, 8, COL.far);
+    // hintere Körperseite
+    s += upperArm(J.fsh, J.felbow, COL.far) + foreArm(J.felbow, J.fhand, COL.far) + hand(J.felbow, J.fhand, COL.far);
+    s += foot(J.fankle, J.ftoe, COL.far) + shin(J.fknee, J.fankle, COL.far) + thigh(J.fhip, J.fknee, COL.far) + shorts(J.fhip, J.fknee, COL.shortsFar);
     // Rumpf, Kopf
-    s += line(J.hip, J.sh, 21, COL.torso);
-    s += line(J.sh, J.neck, 8, COL.near);
-    s += circle(J.head, L.head, COL.head);
-    // vordere Gliedmaßen
-    s += line(J.hip, J.knee, 13, COL.near) + line(J.knee, J.ankle, 11, COL.near) + line(J.ankle, J.toe, 8, COL.near);
-    s += front.map(prop).join('');
-    s += line(J.sh, J.elbow, 10, COL.near) + line(J.elbow, J.hand, 9, COL.near) + circle(J.hand, 4.6, COL.near);
+    s += torsoShape(J, COL.torso) + head(J);
+    // vordere Körperseite
+    s += foot(J.ankle, J.toe, COL.near) + shin(J.knee, J.ankle, COL.near) + thigh(J.hip, J.knee, COL.near) + shorts(J.hip, J.knee, COL.shorts);
+    s += fr.map(prop).join('');
+    s += circle(J.sh, 6.4, COL.torso) + upperArm(J.sh, J.elbow, COL.near) + foreArm(J.elbow, J.hand, COL.near) + hand(J.elbow, J.hand, COL.near);
     s += (spec.handProps ? spec.handProps(J, p, P) : []).map(prop).join('');
     return s;
   }
@@ -121,15 +180,27 @@ const ANIM = (() => {
     const cx = 160, hipY = 98, shY = 44, sw = 22;
     let s = line([10, G], [310, G], 2, COL.floor);
     s += (spec.props ? spec.props(P, p) : []).map(prop).join('');
-    s += line([cx - 9, hipY], [cx - 12, G - 2], 13, COL.near) + line([cx + 9, hipY], [cx + 12, G - 2], 13, COL.near);
-    s += poly([[cx - sw, shY - 2], [cx + sw, shY - 2], [cx + 13, hipY + 4], [cx - 13, hipY + 4]], COL.torso);
-    s += line([cx, shY - 2], [cx, shY - 12], 8, COL.near) + circle([cx, shY - 24], L.head, COL.head);
+    for (const side of [-1, 1]) {
+      const H = [cx + side * 10, hipY], K = [cx + side * 11.5, hipY + 47], A = [cx + side * 12, G - 4];
+      s += limb(K, A, [[0, 11], [0.28, 12.5, side * 0.6], [0.75, 8], [1, 6.2]], COL.near)
+        + limb(H, K, [[0, 17], [0.45, 15], [1, 11]], COL.near)
+        + limb(H, add(H, [side * 0.6, 21]), [[0, 18], [1, 16.5]], COL.shorts)
+        + poly([add(A, [-side * 3, -2]), add(A, [side * 9, 1]), add(A, [side * 8, 4.5]), add(A, [-side * 4, 4.5])], COL.near);
+    }
+    // Rumpf: breite Schultern, Brust, schmale Taille, Becken
+    s += poly([[cx - sw - 1, shY - 3], [cx + sw + 1, shY - 3], [cx + 21, shY + 18], [cx + 15, shY + 42], [cx + 18, hipY - 2],
+      [cx - 18, hipY - 2], [cx - 15, shY + 42], [cx - 21, shY + 18]], COL.torso);
+    s += poly([[cx - 18, hipY - 6], [cx + 18, hipY - 6], [cx + 20, hipY + 8], [cx - 20, hipY + 8]], COL.shorts);
+    s += limb([cx, shY - 2], [cx, shY - 11], [[0, 11], [1, 9]], COL.near);
+    const Hd = [cx, shY - 24];
+    s += circle([Hd[0] - L.head + 0.4, Hd[1] + 1], 2.6, '#c4c8ce') + circle([Hd[0] + L.head - 0.4, Hd[1] + 1], 2.6, '#c4c8ce');
+    s += circle(add(Hd, [0, -1.4]), L.head + 0.4, COL.hair) + circle(add(Hd, [0, 1.6]), L.head - 1.2, COL.head);
     for (const side of [-1, 1]) {
       const S = [cx + side * sw, shY];
       const E = add(S, dir(side * P.arm), L.upper);
-      const H = add(E, dir(side * (P.arm + (P.bend || 0))), L.fore);
-      s += line(S, E, 10, COL.near) + line(E, H, 9, COL.near) + circle(H, 4.6, COL.near);
-      (spec.handProps ? spec.handProps(H, side, P) : []).forEach(o => { s += prop(o); });
+      const Hn = add(E, dir(side * (P.arm + (P.bend || 0))), L.fore);
+      s += circle(S, 6.8, COL.near) + upperArm(S, E, COL.near) + foreArm(E, Hn, COL.near) + hand(E, Hn, COL.near);
+      (spec.handProps ? spec.handProps(Hn, side, P) : []).forEach(o => { s += prop(o); });
     }
     return s;
   }
@@ -145,10 +216,14 @@ const ANIM = (() => {
       const ang = rad(P.arm), v1 = [side * Math.sin(ang), -Math.cos(ang)];
       const ang2 = rad(P.arm - (P.bend ?? 18)), v2 = [side * Math.sin(ang2), -Math.cos(ang2)];
       const E = add(S, v1, 46), H = add(E, v2, 42);
-      s += line(S, E, 11, COL.near) + line(E, H, 10, COL.near) + circle(H, 5, COL.near);
+      s += circle(S, 8.5, COL.near)
+        + limb(S, E, [[0, 13], [0.45, 11.5], [1, 9]], COL.near)
+        + limb(E, add(H, v2, -4), [[0, 9.5], [0.3, 10.5], [1, 6.5]], COL.near)
+        + limb(add(H, v2, -5), add(H, v2, 4), [[0, 7], [0.6, 8.4], [1, 7]], COL.near);
       (spec.handProps ? spec.handProps(H, side, P) : []).forEach(o => { s += prop(o); });
     }
-    s += circle([cx, cy + 2], 13, COL.head) + circle([cx, cy - 12], 3.5, COL.head);
+    // Kopf von oben: Haare, Nase zeigt nach vorn
+    s += circle([cx, cy - 11.5], 3.2, COL.head) + circle([cx, cy + 2], 13, COL.hair) + circle([cx - 12.6, cy + 2], 2.6, '#c4c8ce') + circle([cx + 12.6, cy + 2], 2.6, '#c4c8ce');
     return s;
   }
 
@@ -165,8 +240,8 @@ const ANIM = (() => {
   // --- Beine ---
   S.sq_bb = {
     pose: p => ({ hip: lp([147, 99], [112, 150], p), torso: lerp(178, 140, p), ankle: [150, G], knee: 'fwd',
-      hand: (Sh, tr) => torsoPt(Sh, tr, -2, -3), elbow: 'back' }),
-    props: J => [{ t: 'plate', at: torsoPt(J.sh, J.torso, 1, -8), r: 21 }],
+      hand: (Sh, tr) => torsoPt(Sh, tr, -1, -10), elbow: 'down', armsOut: true }),
+    props: J => [{ t: 'plate', at: torsoPt(J.sh, J.torso, 1, -10), r: 21 }],
   };
   S.goblet = {
     pose: p => ({ hip: lp([147, 99], [118, 152], p), torso: lerp(179, 158, p), ankle: [150, G],
@@ -175,7 +250,7 @@ const ANIM = (() => {
   };
   S.hack = {
     pose: p => ({ hip: lp([150, 100], [118, 148], p), torso: lerp(170, 160, p), ankle: [160, 186], foot: 80,
-      hand: (Sh, tr) => torsoPt(Sh, tr, -4, 6), elbow: 'down' }),
+      hand: (Sh, tr) => torsoPt(Sh, tr, -12, 12), elbow: 'down' }),
     props: J => [{ t: 'line', a: add(add(J.hip, dir(J.torso - 90), -13), dir(J.torso), -6), b: add(add(J.sh, dir(J.torso - 90), -13), dir(J.torso), 14), w: 11, c: COL.pad },
       { t: 'box', x: 120, y: 186, w: 70, h: 6 }, { t: 'line', a: add(J.hip, dir(J.torso), -30), b: [72, G], w: 5 }],
   };
@@ -241,9 +316,9 @@ const ANIM = (() => {
       { t: 'pad', at: add(J.ankle, [3, 6]), r: 7, front: true }, { t: 'line', a: [186, 142], b: add(J.ankle, [3, 6]), w: 4, c: COL.metal }],
   };
   S.legcurl_l = {
-    pose: p => ({ hip: [150, 140], torso: -90, ankle: add([198, 140], dir(lerp(90, 188, p)), L.shin), knee: 'down', foot: lerp(0, -90, p),
-      hand: [76, 152], elbow: 'down', headTilt: 10 }),
-    props: J => [{ t: 'bench', x: 64, y: 148, w: 160, h: 10 }, { t: 'pad', at: add(J.ankle, [0, -8]), r: 7, front: true }],
+    pose: p => ({ hip: [170, 140], torso: 90, ankle: add([122, 140], dir(lerp(-92, -188, p)), L.shin), foot: lerp(0, 90, p),
+      hand: [244, 152], headTilt: -10 }),
+    props: J => [{ t: 'bench', x: 96, y: 148, w: 160, h: 10 }, { t: 'pad', at: add(J.ankle, [0, -8]), r: 7, front: true }],
   };
   S.legcurl_s = {
     pose: p => ({ hip: [140, 140], torso: 192, ankle: add([187, 130], dir(lerp(88, -18, p)), L.shin), knee: 'up', foot: lerp(170, 70, p),
@@ -256,7 +331,7 @@ const ANIM = (() => {
     return { hip: [ankle[0] - 2, ankle[1] - 93], torso: 180, ankle, foot: fa, hand, elbow: 'down' };
   };
   S.calf_m = {
-    pose: p => calf(p, (Sh, tr) => torsoPt(Sh, tr, -2, 6)),
+    pose: p => calf(p, (Sh, tr) => torsoPt(Sh, tr, -10, 12)),
     props: J => [{ t: 'box', x: 150, y: 182, w: 50, h: 8 }, { t: 'box', x: J.sh[0] - 14, y: J.sh[1] - 9, w: 30, h: 7, fill: COL.pad }, post(205, 20, G)],
   };
   S.calf_db = { pose: p => calf(p, down), props: () => [{ t: 'box', x: 150, y: 182, w: 50, h: 8 }], handProps: J => dbAt(J) };
@@ -274,12 +349,12 @@ const ANIM = (() => {
   };
   S.pushup = {
     pose: p => {
-      const ankle = [258, 184], b = lerp(23, 9, p), u = [-Math.cos(rad(b)), -Math.sin(rad(b))];
+      const ankle = [62, 184], b = lerp(23, 9, p), u = [Math.cos(rad(b)), -Math.sin(rad(b))];
       const sh = add(ankle, u, 150), hip = add(ankle, u, 94);
-      return { hip, torso: angleTo(hip, sh), ankle, foot: 40, hand: [116, 188], elbow: 'fwd', headTilt: -5 };
+      return { hip, torso: angleTo(hip, sh), ankle, foot: -40, hand: [204, 188], headTilt: 5 };
     },
   };
-  const incline = (p, v) => ({ hip: [180, 140], torso: -122, ankle: [214, G], knee: 'up', hand: lp([132, 54], [138, 100], p), elbow: 'down', ...v });
+  const incline = (p, v) => ({ hip: [180, 140], torso: -122, ankle: [214, G], knee: 'up', hand: lp([132, 54], [140, 96], p), elbow: 'down', ...v });
   const inclBench = () => [{ t: 'line', a: [182, 150], b: [118, 112], w: 11, c: COL.pad }, seat(160, 146, 40), post(176, 156, G)];
   S.incl_db = { pose: p => incline(p), props: inclBench, handProps: J => dbAt(J) };
   S.incl_bb = { pose: p => incline(p), props: inclBench, handProps: J => [{ t: 'plate', at: J.hand, r: 17 }] };
@@ -292,7 +367,8 @@ const ANIM = (() => {
     props: () => [{ t: 'box', x: 128, y: 96, w: 64, h: 110, fill: COL.pad, r: 8 }] };
 
   // --- Schultern ---
-  const press = (p, v) => ({ ...STAND, hand: (Sh, tr) => torsoPt(Sh, tr, lerp(-3, 59, p), lerp(15, 4, p)), elbow: 'down', ...v });
+  const pressFwd = p => (p < 0.55 ? lerp(15, 18, p / 0.55) : lerp(18, 4, ease((p - 0.55) / 0.45)));
+  const press = (p, v) => ({ ...STAND, hand: (Sh, tr) => torsoPt(Sh, tr, lerp(-3, 59, p), pressFwd(p)), elbow: 'down', headTilt: 9 * Math.sin(Math.PI * Math.min(1, p * 1.4)), ...v });
   S.ohp_bb = { pose: p => press(p), handProps: J => [{ t: 'plate', at: J.hand, r: 16 }] };
   S.ohp_db = {
     pose: p => press(p, { hip: [140, 140], ankle: [184, G], knee: 'fwd' }),
@@ -360,11 +436,11 @@ const ANIM = (() => {
     props: J => [post(214, 10, G), { t: 'cable', from: [208, 16], to: J.hand }], handProps: J => [{ t: 'rope', at: J.hand }],
   };
   S.oh_tri_c = {
-    pose: p => ({ hip: [140, 100], torso: 158, ankle: [160, G], knee: 'fwd', far: { ankle: [118, G] }, hand: Sh => hinge(Sh, 158, lerp(-20, 156, p)), elbow: 'up' }),
+    pose: p => ({ hip: [140, 100], torso: 158, ankle: [160, G], knee: 'fwd', far: { ankle: [118, G] }, hand: Sh => hinge(Sh, 158, lerp(-50, -202, p)), elbow: 'up' }),
     props: J => [post(34, 60, G), { t: 'cable', from: [40, 96], to: J.hand }], handProps: J => [{ t: 'rope', at: J.hand }],
   };
   S.oh_tri_db = {
-    pose: p => ({ hip: [140, 140], torso: 182, ankle: [184, G], knee: 'fwd', hand: Sh => hinge(Sh, 172, lerp(-12, 174, p)), elbow: 'up' }),
+    pose: p => ({ hip: [140, 140], torso: 182, ankle: [184, G], knee: 'fwd', hand: Sh => hinge(Sh, 172, lerp(-36, -184, p)), elbow: 'up' }),
     props: () => [seat(112, 146, 52), post(138, 156, G)], handProps: J => dbAt(J, true),
   };
   S.kick_tri = {
@@ -380,7 +456,7 @@ const ANIM = (() => {
   };
   S.leg_raise = {
     scale: 0.8,
-    pose: p => ({ hip: [150, 145], torso: lerp(180, 192, p), ankle: add([150, 145], dir(lerp(-3, 92, p)), 92), knee: 'fwd', foot: lerp(80, 180, p), hand: [152, 24], elbow: 'fwd' }),
+    pose: p => ({ hip: [150, 142], torso: lerp(180, 192, p), ankle: add([150, 142], dir(lerp(-3, 92, p)), 91), knee: 'fwd', foot: lerp(80, 180, p), hand: [152, 24], elbow: 'fwd' }),
     props: () => [{ t: 'line', a: [110, 24], b: [200, 24], w: 5, c: COL.metal }, post(110, 24, 236)],
   };
   S.db_crunch = {
@@ -397,9 +473,9 @@ const ANIM = (() => {
   // --- Cardio (zyklisch) ---
   const walk = (p, v) => {
     const ph = p * Math.PI * 2;
-    const step = (q) => [150 + 26 * Math.sin(q), G - Math.max(0, 9 * Math.cos(q))];
-    return { hip: [149, 100 + 2 * Math.cos(2 * ph)], torso: 176, ankle: step(ph), foot: 90 + 12 * Math.cos(ph),
-      far: { ankle: step(ph + Math.PI), hand: Sh => hinge(Sh, -24 * Math.sin(ph), -24 * Math.sin(ph) + 60) },
+    const step = (q) => [150 + 23 * Math.sin(q), G - Math.max(0, 9 * Math.cos(q))];
+    return { hip: [149, 99.5 - 2.5 * Math.cos(2 * ph)], torso: 176, ankle: step(ph), foot: 90 + 12 * Math.cos(ph),
+      far: { ankle: add(step(ph + Math.PI), D), hand: Sh => hinge(Sh, -24 * Math.sin(ph), -24 * Math.sin(ph) + 60) },
       hand: Sh => hinge(Sh, 24 * Math.sin(ph), 24 * Math.sin(ph) + 60), elbow: 'fwd', ...v };
   };
   S.c_walk = { cyclic: true, pose: walk };
@@ -408,7 +484,7 @@ const ANIM = (() => {
     cyclic: true,
     pose: p => {
       const ph = p * Math.PI * 2, foot = q => [150 + 22 * Math.cos(q), 176 + 7 * Math.sin(q)], hand = q => [196 + 14 * Math.cos(q), 98 + 3 * Math.sin(q)];
-      return { hip: [150, 88 + 3 * Math.sin(ph)], torso: 178, ankle: foot(ph), foot: 90, hand: hand(ph + Math.PI), elbow: 'down',
+      return { hip: [150, 91 + 3 * Math.sin(ph)], torso: 178, ankle: foot(ph), foot: 90, hand: hand(ph + Math.PI), elbow: 'down',
         far: { ankle: foot(ph + Math.PI), hand: hand(ph) } };
     },
     props: J => [{ t: 'line', a: [100, G], b: [250, G], w: 7 }, { t: 'line', a: [240, G], b: [214, 70], w: 6 }, { t: 'line', a: J.hand, b: [210, 160], w: 4, c: COL.metal }],
@@ -430,7 +506,6 @@ const ANIM = (() => {
   const VIEW = { side: drawSide, front: drawFront, top: drawTop };
   const TIMING = [['start', 550], ['exec', 1150], ['end', 500], ['exec', 1450]]; // Start halten, hoch, Ende halten, zurück
   const REPS = 3;
-  const ease = x => 0.5 - 0.5 * Math.cos(Math.PI * x);
 
   function frame(spec, p) {
     let body = (VIEW[spec.view || 'side'])(spec, p);
@@ -546,5 +621,7 @@ const ANIM = (() => {
     current = null;
   }
 
-  return { has: id => !!S[id], cyclic: id => !!S[id]?.cyclic, view: id => S[id]?.view || 'side', mount, play, pause, resume, finish, hold, showPhase, isRunning, stop, frame: (id, p) => S[id] ? frame(S[id], p) : '', ids: () => Object.keys(S) };
+  return { has: id => !!S[id], cyclic: id => !!S[id]?.cyclic, view: id => S[id]?.view || 'side', mount, play, pause, resume, finish, hold, showPhase, isRunning, stop, frame: (id, p) => S[id] ? frame(S[id], p) : '', ids: () => Object.keys(S),
+    // für tools/anim-check.js: Gelenkpunkte der Seitenansicht
+    _joints: (id, p) => (S[id] && (S[id].view || 'side') === 'side' ? { ...solve(S[id].pose(p)), scale: S[id].scale } : null) };
 })();

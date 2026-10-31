@@ -56,6 +56,10 @@ test('alle Frames rendern ohne NaN (p = 0 … 1)', () => {
     assert(svg.startsWith('<svg') && !/NaN|undefined/.test(svg), `${x.id} @ ${p}`);
   }
 });
+test('Animationen anatomisch plausibel (tools/anim-check.js)', () => {
+  const r = require('child_process').spawnSync(process.execPath, [path.join(__dirname, 'anim-check.js')], { encoding: 'utf8' });
+  assert(r.status === 0, r.stdout.trim().split('\n').slice(0, 5).join(' / '));
+});
 test('Animationsfarben folgen dem Theme (CSS-Variablen statt fester Farbe)', () => {
   const svg = ANIM.frame('sq_bb', 0.5);
   assert(svg.includes('var(--ac)') && !svg.includes('#c8f542'), 'feste Akzentfarbe gefunden');
@@ -83,9 +87,10 @@ test('fehlender Text in einer Sprache → kein Sprechtext (statt fremder Sprache
 });
 test('Abkürzungen werden aussprechbar gemacht', () => {
   assert(V.speakable('8–10 Wdh. ca. 30 Sek.', 'de') === '8 bis 10 Wiederholungen circa 30 Sekunden', V.speakable('8–10 Wdh. ca. 30 Sek.', 'de'));
-  assert(V.speakable('Hold 1 s at the top', 'en') === 'Hold 1 seconds at the top', 'en');
+  assert(V.speakable('Hold 1 s at the top', 'en') === 'Hold 1 second at the top', 'en');
   assert(V.speakable('Eğim %10–12', 'tr') === 'Eğim yüzde 10 ila 12', V.speakable('Eğim %10–12', 'tr'));
   assert(V.speakable('10–12 rep.', 'es') === '10 a 12 repeticiones', 'es');
+  assert(V.speakable('Rep. por pierna', 'es') === 'Repeticiones por pierna', 'es (Satzanfang)');
 });
 test('Sätze werden korrekt getrennt', () => {
   const s = V.splitSentences('Erster Satz. Zweiter Satz! Dritter?');
@@ -110,8 +115,31 @@ test('audio/manifest.json ist gültig und verweist nur auf vorhandene Dateien', 
   const m = JSON.parse(fs.readFileSync(path.join(ROOT, 'audio', 'manifest.json'), 'utf8'));
   for (const [lang, ids] of Object.entries(m.files || {})) for (const [id, f] of Object.entries(ids)) {
     assert(f.ext !== 'wav' || f.voice !== 'mock', `${lang}/${id}: Test-Töne (mock) dürfen nicht veröffentlicht werden`);
-    for (let i = 1; i <= f.n; i++) assert(fs.existsSync(path.join(ROOT, 'audio', lang, id, `${i}.${f.ext}`)), `${lang}/${id}/${i}.${f.ext} fehlt`);
+    if (f.file) {
+      assert(fs.existsSync(path.join(ROOT, f.file)), `${f.file} fehlt`);
+      assert(f.marks.length === f.n && f.marks.every((t, i) => t >= 0 && t < f.dur && (i === 0 || t > f.marks[i - 1])), `${lang}/${id}: Satzmarken ungültig`);
+    } else {
+      for (let i = 1; i <= f.n; i++) assert(fs.existsSync(path.join(ROOT, 'audio', lang, id, `${i}.${f.ext}`)), `${lang}/${id}/${i}.${f.ext} fehlt`);
+    }
   }
+});
+test('jede Übung hat in jeder Sprache eine aktuelle Studioaufnahme', () => {
+  const m = JSON.parse(fs.readFileSync(path.join(ROOT, 'audio', 'manifest.json'), 'utf8'));
+  const stale = [];
+  for (const lang of I18N.order) for (const x of EX) {
+    const f = m.files?.[lang]?.[x.id], sc = V.script(x.id, lang);
+    if (!f || f.hash !== sc.hash || f.n !== sc.sentences.length) stale.push(`${lang}/${x.id}`);
+  }
+  assert(!stale.length, 'fehlt oder veraltet (Text geändert?): ' + stale.join(', '));
+});
+test('Quelle: eine Datei pro Übung mit Satzmarken', () => {
+  const sc = V.script('dl', 'de');
+  V.setManifest({ files: { de: { dl: { hash: sc.hash, n: sc.sentences.length, ext: 'mp3', file: 'audio/de/dl.mp3', marks: sc.sentences.map((_, i) => i * 2), dur: 30 } } } });
+  const src = VOICE.source('dl', 'de');
+  assert(src.type === 'file' && src.file === `audio/de/dl.mp3?v=${sc.hash}` && src.marks.length === sc.sentences.length, JSON.stringify(src));
+  V.setManifest({ files: { de: { dl: { hash: sc.hash, n: sc.sentences.length, ext: 'mp3', file: 'audio/de/dl.mp3', marks: [0, 1] } } } });
+  assert(VOICE.source('dl', 'de').type !== 'file', 'falsche Zahl an Satzmarken darf nicht genutzt werden');
+  V.setManifest(null);
 });
 
 console.log('\nSET Mode (Theme)');

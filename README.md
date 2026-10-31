@@ -13,12 +13,14 @@ Live: <https://salihclaude.github.io/set-mode/>
 - **Automatische Progression:** Die App wertet geschaffte Wiederholungen, Gefühl („Leicht / Passend / Sehr schwer“) und
   Erschöpfung (1–5) aus und plant automatische Deload-Wochen ein.
 - **Übung erklären:** Jede Übung zeigt eine animierte Figur (Start → Ausführung → Endposition, startet nur auf Tippen)
-  sowie Ausführung, Tipps, häufige Fehler, beanspruchte Muskeln und Atmung.
+  sowie Ausführung, Tipps, häufige Fehler, beanspruchte Muskeln und Atmung. Die Figur bewegt sich anatomisch korrekt
+  (Knie und Ellbogen beugen nur in natürlicher Richtung, Gelenkwinkel im menschlichen Bewegungsumfang).
 - **4 Sprachen:** Deutsch 🇩🇪, Englisch 🇬🇧, Spanisch 🇪🇸 und Türkisch 🇹🇷. Die Sprache wechselt sofort ohne Neuladen und
   wird gespeichert. Beim ersten Start gilt die Gerätesprache, sonst Deutsch.
 - **SET-Mode-Schalter:** Der Regler in der Wortmarke (Tippen oder Ziehen) schaltet zwischen dem Standarddesign
   (rechts, ON) und einem monochromen Graphit-Design (links, OFF). Die Einstellung wird gespeichert.
-- **Voiceover:** Die Erklärung wird in der App-Sprache mitgesprochen, synchron zur Animation (siehe [VOICEOVER.md](VOICEOVER.md)).
+- **Voiceover:** Die Erklärung wird in der App-Sprache mitgesprochen (Studioaufnahmen von ElevenLabs, alle 4 Sprachen),
+  synchron zur Animation (siehe [VOICEOVER.md](VOICEOVER.md)).
 - **Bottom Sheets** lassen sich nach unten wegwischen; Scrollen im Inhalt bleibt unberührt.
 - **Verlauf:** Wochenvolumen, Körpergewicht, Fortschritt pro Übung, Rekorde und Serien.
 - **Offline-fähig**, alle Daten bleiben lokal auf dem Gerät. Backup per Export/Import.
@@ -31,9 +33,9 @@ Live: <https://salihclaude.github.io/set-mode/>
 | `i18n.js` | Sprachkern: `t(key, params)`, Rückfall auf Deutsch, Spracherkennung |
 | `lang/*.js` | Ein Wörterbuch pro Sprache (Oberfläche + Übungstexte unter `ex.<id>`) |
 | `data.js` | Übungsdatenbank (IDs, Muskeln, Atemmuster) und Plan-Generator |
-| `anim.js` | Eigene SVG-Animations-Engine (2D-Figur mit IK), eine Pose-Funktion pro Übung |
+| `anim.js` | Eigene SVG-Animations-Engine (2D-Figur mit anatomischer IK), eine Pose-Funktion pro Übung |
 | `voice.js` | Voiceover: Sprechtexte, Aufnahmen aus `audio/` oder Gerätestimme, satzweise Wiedergabe |
-| `audio/` | `manifest.json` + Aufnahmen `audio/<sprache>/<id>/<satz>.mp3` (siehe VOICEOVER.md) |
+| `audio/` | `manifest.json` + Aufnahmen `audio/<sprache>/<id>.mp3` mit Satzmarken (siehe VOICEOVER.md) |
 | `app.js` | Oberfläche, Trainingslogik, Speicherung, Migration älterer Daten |
 | `styles.css` | Design; Theme-Tokens für SET Mode ON/OFF (`html[data-setmode]`) |
 | `sw.js` | Offline-Cache |
@@ -54,7 +56,7 @@ Ohne Animation zeigt die App einen sauberen Platzhalter „Animation folgt“.
 
 - Gespeichert wird im `localStorage` unter dem Schlüssel `fitplan.v1` (aus Kompatibilitätsgründen unverändert).
   Ältere Daten werden beim Start automatisch übernommen, eigene Übungs- und Tagesnamen bleiben erhalten.
-- Nach Änderungen die Cache-Version in `sw.js` erhöhen (`setmode-v5` → `setmode-v6`). Geräte laden die neue Version
+- Nach Änderungen die Cache-Version in `sw.js` erhöhen (`setmode-v6` → `setmode-v7`). Geräte laden die neue Version
   im Hintergrund und zeigen sie beim nächsten Öffnen.
 
 ## Aufs Handy bringen
@@ -71,6 +73,7 @@ Danach <http://localhost:8080> öffnen; der Offline-Cache ist lokal deaktiviert.
 
 - `node tools/test.js`: alle Tests (Sprachen, Plan-Generator, Animationen, Voiceover, Theme)
 - `node tools/check-i18n.js`: prüft alle Sprachen auf Vollständigkeit
-- `node tools/generate-voiceover.js`: erzeugt Voiceover-Aufnahmen (siehe VOICEOVER.md)
+- `node tools/anim-check.js`: prüft alle Animationen auf anatomische Fehler (Gelenkwinkel, Beugerichtung, Boden)
+- `node tools/vo-batches.js`, `tools/vo-align.html`, `node tools/vo-split.js`: ElevenLabs-Voiceover-Pipeline (siehe VOICEOVER.md)
 - `http://localhost:8080/tools/anim-gallery.html`: zeigt alle Animationen (Start / Mitte / Ende)
 - `node tools/make-icons.js`: erzeugt die App-Icons neu
