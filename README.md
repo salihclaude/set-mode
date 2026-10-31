@@ -1,66 +1,68 @@
-# Fitnessplaner
+# SET Mode
 
-Persönliche Trainings-App (Web-App/PWA) für das Galaxy S24 Ultra.
+**SET Mode** ist eine mehrsprachige Trainings-App (Web-App/PWA), optimiert für Smartphones wie das Galaxy S24 Ultra.
+Ein Fragebogen erstellt den passenden Trainingsplan, die App steigert die Gewichte danach automatisch. Jede Übung
+lässt sich per Animation und Tipps erklären.
+
 Live: <https://salihclaude.github.io/fitnessplaner/>
 
-## Plan per Fragebogen
+## Funktionen
 
-Beim ersten Start (oder unter *Plan → Neuen Plan erstellen*) fragt die App:
-Ziel, Erfahrung, Tage pro Woche, Aufteilung, Dauer, Trainingsort, Cardio, Beschwerden,
-Fokus-Bereiche, Körperdaten und Pausen-Timer. Daraus baut `data.js` den Plan:
+- **Plan per Fragebogen:** Ziel, Erfahrung, Tage pro Woche, Aufteilung, Dauer, Trainingsort, Cardio, Beschwerden,
+  Fokus-Bereiche, Körperdaten und Pausen-Timer. Daraus entsteht der Plan mit Startgewichten.
+- **Automatische Progression:** Die App wertet geschaffte Wiederholungen, Gefühl („Leicht / Passend / Sehr schwer“) und
+  Erschöpfung (1–5) aus und plant automatische Deload-Wochen ein.
+- **Übung erklären:** Jede Übung zeigt eine animierte Figur (Start → Ausführung → Endposition, startet nur auf Tippen)
+  sowie Ausführung, Tipps, häufige Fehler, beanspruchte Muskeln und Atmung.
+- **4 Sprachen:** Deutsch 🇩🇪, Englisch 🇬🇧, Spanisch 🇪🇸 und Türkisch 🇹🇷. Die Sprache wechselt sofort ohne Neuladen und
+  wird gespeichert. Beim ersten Start gilt die Gerätesprache, sonst Deutsch.
+- **Verlauf:** Wochenvolumen, Körpergewicht, Fortschritt pro Übung, Rekorde und Serien.
+- **Offline-fähig**, alle Daten bleiben lokal auf dem Gerät. Backup per Export/Import.
 
-- **Aufteilung:** 2–3 Tage Ganzkörper (oder PPL), 4 Tage Ober-/Unterkörper, 5 Tage OK/UK + PPL, 6 Tage PPL ×2
-- **Übungen** aus einer Datenbank mit Alternativen. Sie werden nach Gerät gefiltert, belastende Übungen bei
-  Beschwerden ersetzt und an verschiedenen Tagen variiert.
-- **Sätze/Wiederholungen/Pausen** je nach Ziel; zu lange Einheiten werden auf die gewählte Dauer gekürzt
-- **Startgewichte** werden aus Körpergewicht, Geschlecht und Erfahrung geschätzt und lassen sich anpassen.
+## Aufbau
 
-Der Verlauf bleibt beim Neuerstellen erhalten. Einzelne Übungen lassen sich im Plan gegen Alternativen tauschen.
-
-## So funktioniert die automatische Anpassung
-
-Nach jeder Übung tippst du an, wie sie sich angefühlt hat (**Leicht / Passend / Sehr schwer**).
-Am Ende gibst du an, wie erschöpft du bist (**1–5**). Daraus rechnet die App die Werte fürs nächste Mal,
-also für denselben Tag in der nächsten Woche:
-
-| Situation | Nächstes Mal |
+| Datei | Inhalt |
 |---|---|
-| Alle Sätze geschafft, „Passend“ | +1 Wiederholung |
-| Alle geschafft, „Leicht“ (Erschöpfung ≤ 3) | +2 Wiederholungen |
-| Oberes Ende des Wdh.-Bereichs erreicht | Gewicht + Schritt (z. B. +2,5 kg), Wdh. zurück aufs Minimum |
-| … dabei „Leicht“ und Erschöpfung ≤ 2 | doppelter Gewichtssprung |
-| „Sehr schwer“ oder Erschöpfung 5 | Werte halten |
-| Unter dem Wdh.-Bereich | gleiches Ziel nochmal; beim 2. Mal in Folge −10 % |
+| `index.html` | Einstieg, lädt die Skripte in fester Reihenfolge |
+| `i18n.js` | Sprachkern: `t(key, params)`, Rückfall auf Deutsch, Spracherkennung |
+| `lang/*.js` | Ein Wörterbuch pro Sprache (Oberfläche + Übungstexte unter `ex.<id>`) |
+| `data.js` | Übungsdatenbank (IDs, Muskeln, Atemmuster) und Plan-Generator |
+| `anim.js` | Eigene SVG-Animations-Engine (2D-Figur mit IK), eine Pose-Funktion pro Übung |
+| `app.js` | Oberfläche, Trainingslogik, Speicherung, Migration älterer Daten |
+| `styles.css` | Design |
+| `sw.js` | Offline-Cache |
 
-**Deload:** Alle 6 Wochen oder wenn du 3 Trainings in Folge sehr erschöpft warst (Ø ≥ 4,3), kommt automatisch eine
-leichte Woche mit 3 Trainings: ca. 85 % Gewicht und ein Satz weniger. Danach geht es mit den normalen Werten weiter.
+### Weitere Sprache hinzufügen
 
-Bei Langhantelübungen zeigt die App die Scheiben pro Seite an (Stangengewicht in den Einstellungen, Standard 20 kg).
+1. `lang/de.js` nach `lang/<code>.js` kopieren, `I18N.add('<code>', { name, flag, locale }, …)` anpassen und übersetzen.
+2. `<script src="lang/<code>.js">` in `index.html` und die Datei in `sw.js` (`FILES`) eintragen.
+3. Optional eine SVG-Flagge in `FLAGS` (`app.js`) ergänzen.
+4. `node tools/check-i18n.js` ausführen. Das Skript meldet fehlende oder überzählige Schlüssel.
+
+### Neue Übung hinzufügen
+
+Eintrag in `EX` (`data.js`), Texte unter `ex.<id>` in allen Sprachdateien, optional eine Animation in `anim.js`.
+Ohne Animation zeigt die App einen sauberen Platzhalter „Animation folgt“.
+
+## Daten & Updates
+
+- Gespeichert wird im `localStorage` unter dem Schlüssel `fitplan.v1` (aus Kompatibilitätsgründen unverändert).
+  Ältere Daten werden beim Start automatisch übernommen, eigene Übungs- und Tagesnamen bleiben erhalten.
+- Nach Änderungen die Cache-Version in `sw.js` erhöhen (`setmode-v3` → `setmode-v4`). Geräte laden die neue Version
+  im Hintergrund und zeigen sie beim nächsten Öffnen.
 
 ## Aufs Handy bringen
 
-Eine Web-App lässt sich nur über **HTTPS** installieren, deshalb müssen die Dateien einmal online gestellt werden.
-Kostenlose Möglichkeiten:
+Die Adresse oben in **Chrome** öffnen → Menü ⋮ → **App installieren**.
 
-- **GitHub Pages:** Repository anlegen, alle Dateien hochladen, unter *Settings → Pages* den Branch `main` auswählen.
-- **Netlify Drop:** Ordner auf <https://app.netlify.com/drop> ziehen.
-
-Danach auf dem S24 Ultra in **Chrome** die Adresse öffnen → Menü ⋮ → **Zum Startbildschirm hinzufügen / App installieren**.
-Die App läuft dann im Vollbild und auch offline.
-
-> Hinweis: Deine Trainingsdaten liegen **nur lokal auf dem Handy**. Unter *Plan → Datensicherung* regelmäßig ein Backup
-> exportieren (z. B. nach Google Drive). Auf dem Server liegt nur der Programmcode, keine Daten.
-
-## Updates
-
-Nach Änderungen an der App in `sw.js` die Cache-Version erhöhen (`fitplan-v1` → `fitplan-v2`).
-Das Handy lädt die neue Version im Hintergrund und zeigt sie beim nächsten Öffnen an.
-
-## Lokal am PC testen
+## Entwicklung
 
 ```bash
 node tools/serve.js
 ```
 
-Dann <http://localhost:8080> öffnen (offline-Cache ist lokal deaktiviert).
-Icons neu erzeugen: `node tools/make-icons.js`.
+Danach <http://localhost:8080> öffnen; der Offline-Cache ist lokal deaktiviert.
+
+- `node tools/check-i18n.js`: prüft alle Sprachen auf Vollständigkeit
+- `http://localhost:8080/tools/anim-gallery.html`: zeigt alle Animationen (Start / Mitte / Ende)
+- `node tools/make-icons.js`: erzeugt die App-Icons neu

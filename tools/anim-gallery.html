@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SET Mode – Animationsgalerie</title>
+  <style>
+    body { margin: 0; background: #000; color: #eee; font: 13px system-ui, sans-serif; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--w, 330px), 1fr)); gap: 10px; padding: 10px; }
+    .cell { background: #111; border-radius: 12px; padding: 8px; }
+    .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .row svg { width: 100%; height: auto; background: #0b0c0e; border-radius: 6px; }
+    b { display: block; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <!-- Entwicklerwerkzeug: alle Animationen bei p = 0 / 0,5 / 1. Aufruf: http://localhost:8080/tools/anim-gallery.html -->
+  <div class="grid" id="g"></div>
+  <script src="../anim.js"></script>
+  <script>
+    const only = new URLSearchParams(location.search).get('ids');
+    const ids = only ? only.split(',') : ANIM.ids();
+    document.getElementById('g').innerHTML = ids.map(id =>
+      `<div class="cell"><b>${id}</b><div class="row">${[0, 0.5, 1].map(p => ANIM.frame(id, p)).join('')}</div></div>`).join('');
+  </script>
+</body>
+</html>

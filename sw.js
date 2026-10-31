@@ -1,10 +1,16 @@
-// Offline-Cache. Bei Änderungen an der App die Version erhöhen.
-const CACHE = 'fitplan-v2';
+// SET Mode – Offline-Cache. Bei Änderungen an der App die Version erhöhen.
+const CACHE = 'setmode-v3';
 const FILES = [
   './',
   'index.html',
   'styles.css',
+  'i18n.js',
+  'lang/de.js',
+  'lang/en.js',
+  'lang/es.js',
+  'lang/tr.js',
   'data.js',
+  'anim.js',
   'app.js',
   'manifest.webmanifest',
   'icons/icon-192.png',

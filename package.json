@@ -1,0 +1,13 @@
+{
+  "name": "set-mode",
+  "displayName": "SET Mode",
+  "version": "3.0.0",
+  "description": "SET Mode – mehrsprachige Trainings-App (PWA) mit Plan-Fragebogen, automatischer Progression und erklärten Übungen",
+  "private": true,
+  "homepage": "https://salihclaude.github.io/fitnessplaner/",
+  "scripts": {
+    "start": "node tools/serve.js",
+    "check:i18n": "node tools/check-i18n.js",
+    "icons": "node tools/make-icons.js"
+  }
+}

@@ -43,17 +43,12 @@ function rrect(px, py, cx, cy, hw, hh, r) {
   return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
 }
 
-// Hantel in Koordinaten 0..1; scale < 1 verkleinert für die Maskable-Safe-Zone
+// SET-Mode-Zeichen: Schalter „an“ (Pille) mit dunklem Knopf rechts.
+// 1 = Akzentfarbe, 2 = Hintergrundfarbe (Knopf), 0 = nichts
 function shape(x, y, scale) {
   const u = (x - 0.5) / scale + 0.5, v = (y - 0.5) / scale + 0.5;
-  const parts = [
-    rrect(u, v, 0.5, 0.5, 0.20, 0.035, 0.02),     // Stange
-    rrect(u, v, 0.27, 0.5, 0.045, 0.19, 0.035),   // innere Scheiben
-    rrect(u, v, 0.73, 0.5, 0.045, 0.19, 0.035),
-    rrect(u, v, 0.175, 0.5, 0.035, 0.12, 0.03),   // äußere Scheiben
-    rrect(u, v, 0.825, 0.5, 0.035, 0.12, 0.03),
-  ];
-  return Math.min(...parts) <= 0;
+  if (Math.hypot(u - 0.64, v - 0.5) <= 0.135) return 2;
+  return rrect(u, v, 0.5, 0.5, 0.33, 0.19, 0.19) <= 0 ? 1 : 0;
 }
 
 function draw(size, { maskable }) {
@@ -64,7 +59,7 @@ function draw(size, { maskable }) {
     for (let sy = 0; sy < SS; sy++) for (let sx = 0; sx < SS; sx++) {
       const px = (x + (sx + 0.5) / SS) / size, py = (y + (sy + 0.5) / SS) / size;
       const inBg = maskable ? true : rrect(px, py, 0.5, 0.5, 0.5, 0.5, 0.22) <= 0;
-      if (inBg) { bgA++; if (shape(px, py, maskable ? 0.72 : 0.9)) fg++; }
+      if (inBg) { bgA++; if (shape(px, py, maskable ? 0.72 : 0.9) === 1) fg++; }
     }
     const n = SS * SS, a = bgA / n, f = bgA ? fg / bgA : 0;
     const i = (y * size + x) * 4;

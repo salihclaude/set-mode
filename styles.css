@@ -577,3 +577,120 @@ textarea.in { padding: 12px 14px; min-height: 70px; resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* =========================================================
+   SET Mode – Branding, Sprachwahl, Übung erklären
+   ========================================================= */
+
+.wordmark { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--tx); }
+.wordmark svg { width: 30px; height: 18px; color: var(--ac); flex: none; }
+.wordmark b { font-weight: 900; color: var(--ac); letter-spacing: .02em; }
+.topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+
+.welcome-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 34px; flex-wrap: wrap; }
+.welcome-logo svg { width: 52px; height: 30px; color: var(--ac-ink); }
+.welcome-logo svg rect { fill: var(--ac-ink); }
+.welcome-logo svg circle { fill: var(--ac); }
+.welcome { justify-content: flex-start; }
+
+.langs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.langs button {
+  display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 0 14px;
+  border-radius: 14px; background: var(--s2); border: 1.5px solid var(--line);
+  font-weight: 700; font-size: 15px; color: var(--tx2); transition: all .2s;
+}
+.langs button .flag { font-size: 20px; line-height: 1; }
+.langs button.on { border-color: var(--ac); background: var(--ac-soft); color: var(--tx); }
+.langs.compact { display: flex; gap: 4px; padding: 4px; background: var(--s2); border: 1px solid var(--line); border-radius: 14px; }
+.langs.compact button { min-height: 34px; padding: 0 8px; gap: 5px; border: 0; border-radius: 10px; font-size: 12px; background: transparent; }
+.langs.compact button .flag { font-size: 15px; }
+.langs.compact button.on { background: var(--ac); color: var(--ac-ink); }
+label.f > span svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+
+/* Übungslisten: ganze Zeile öffnet die Erklärung */
+.ex-list li { padding: 0; }
+.ex-link { width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 0; text-align: left; }
+.ex-link .name { flex: 1; }
+.ex-link .i-dot { width: 22px; height: 22px; color: var(--tx3); flex: none; opacity: .75; }
+.ex-link .i-dot svg { width: 18px; height: 18px; }
+.ex-link:active .name { color: var(--ac); }
+
+.plan-row { padding: 0; gap: 6px; }
+.plan-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 13px 0; text-align: left; }
+.plan-main .t { flex: 1; min-width: 0; }
+.plan-main .t b { display: block; font-weight: 700; font-size: 15.5px; }
+.plan-main .t span { font-size: 13.5px; color: var(--tx2); }
+.info-btn { width: 40px; height: 40px; color: var(--tx2); }
+
+.explain {
+  display: flex; align-items: center; gap: 10px; width: 100%; margin: 0 0 12px; padding: 11px 14px;
+  border-radius: 14px; background: var(--ac-soft); border: 1px solid var(--ac-line);
+  color: var(--ac); font-weight: 700; font-size: 15px;
+}
+.explain svg { width: 20px; height: 20px; }
+
+.footer { text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.footer svg { width: 24px; height: 14px; color: var(--tx3); }
+
+/* Erklär-Fenster */
+.info-sheet { padding-bottom: calc(18px + var(--safe-b)); }
+.info-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.info-head h3 { margin: 2px 0 0; font-size: 21px; line-height: 1.2; }
+.info-ic { width: 44px; height: 44px; border-radius: 14px; background: var(--ac-soft); color: var(--ac); display: grid; place-items: center; flex: none; }
+.info-ic svg { width: 22px; height: 22px; }
+
+.anim {
+  position: relative; border-radius: 20px; overflow: hidden; margin-bottom: 14px;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(200, 245, 66, .07), transparent 60%), #0b0c0e;
+  border: 1px solid var(--line);
+}
+.anim-stage { aspect-ratio: 320 / 200; }
+.anim-svg { display: block; width: 100%; height: 100%; }
+.anim-play {
+  position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%);
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--ac); color: var(--ac-ink); display: grid; place-items: center;
+  box-shadow: 0 10px 30px -8px rgba(200, 245, 66, .7); transition: all .25s var(--ease);
+}
+.anim-play svg { width: 28px; height: 28px; }
+.anim-play .pl svg { margin-left: 3px; }
+.anim-play .st { display: none; }
+.anim.started .anim-play { left: auto; right: 10px; top: 10px; transform: none; width: 42px; height: 42px; box-shadow: none; }
+.anim.started .anim-play svg { width: 18px; height: 18px; }
+.anim.playing .anim-play .pl { display: none; }
+.anim.playing .anim-play .st { display: block; }
+.anim-view {
+  position: absolute; left: 10px; top: 10px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--tx3); background: rgba(0, 0, 0, .55); padding: 4px 8px; border-radius: 8px;
+}
+.phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; border-top: 1px solid var(--line); background: rgba(0, 0, 0, .35); }
+.phases button { text-align: center; min-height: 38px; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--tx3); background: rgba(255, 255, 255, .04); transition: all .2s; }
+.phases button.on { background: var(--ac-soft); color: var(--ac); }
+
+.anim.placeholder { aspect-ratio: auto; padding: 26px 18px; text-align: center; border-style: dashed; border-color: var(--line2); }
+.anim.placeholder .ph-ic { width: 52px; height: 52px; margin: 0 auto 10px; border-radius: 16px; display: grid; place-items: center; background: rgba(255, 255, 255, .05); color: var(--tx3); }
+.anim.placeholder .ph-ic svg { width: 26px; height: 26px; }
+.anim.placeholder b { display: block; font-size: 16px; }
+.anim.placeholder p { margin: 6px 0 0; color: var(--tx2); font-size: 14px; }
+
+.info-sec { padding: 12px 0; border-top: 1px solid var(--line); }
+.info-sec h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: var(--tx3); }
+.info-sec h4 svg { width: 16px; height: 16px; color: var(--ac); }
+.info-sec p { margin: 0; font-size: 15px; color: var(--tx); line-height: 1.5; }
+.info-sec ul { margin: 0; padding-left: 18px; font-size: 15px; line-height: 1.5; }
+.info-sec li + li { margin-top: 4px; }
+
+/* Tablet & Desktop: Fenster mittig statt am unteren Rand */
+@media (min-width: 700px) {
+  #app { padding-top: 32px; }
+  .modal-bg { align-items: center; padding: 24px; }
+  .sheet { border-radius: 28px; border-bottom: 1px solid var(--line2); max-height: 88dvh; }
+  .sheet .grab { display: none; }
+  .info-sheet { max-width: 560px; }
+}
+@media (min-width: 1000px) {
+  #app { max-width: 560px; }
+}
+svg.flag { width: 22px; height: 15px; border-radius: 3px; flex: none; box-shadow: 0 0 0 1px rgba(255, 255, 255, .12); }
+.langs.compact svg.flag { width: 18px; height: 12px; }
+@media (min-width: 700px) { .anim-stage { max-height: 300px; width: 100%; } }
